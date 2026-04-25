@@ -4,11 +4,17 @@ struct TodoCardView: View {
     let index: Int
     let todo: TodoItem
     @EnvironmentObject var viewModel: TodoViewModel
-    @EnvironmentObject var appState: AppState
 
     @State private var showSubtaskInput = false
     @State private var subtaskText = ""
     @State private var showDeleteAlert = false
+    @State private var isEditingTitle = false
+    @State private var editTitle: String = ""
+
+    // 按钮尺寸
+    private let iconSize: CGFloat = 18
+    private let hitWidth: CGFloat = 34
+    private let hitHeight: CGFloat = 30
 
     var body: some View {
         VStack(spacing: 0) {
@@ -16,50 +22,57 @@ struct TodoCardView: View {
             HStack(spacing: 10) {
                 // 序号
                 Text("\(index).")
-                    .font(.system(size: 15, weight: .regular))
+                    .font(.body)
                     .foregroundStyle(.tertiary)
-                    .frame(width: 22, alignment: .trailing)
+                    .frame(width: 24, alignment: .trailing)
 
-                // 标题
-                Text(todo.title)
-                    .font(.system(size: 15, weight: .medium))
-                    .lineLimit(2)
-                    .strikethrough(todo.isCompleted)
-                    .foregroundStyle(todo.isCompleted ? .secondary : .primary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                // 标题（双击编辑）
+                if isEditingTitle {
+                    HStack(spacing: 6) {
+                        TextField("待办标题", text: $editTitle, onCommit: commitTitle)
+                            .textFieldStyle(.plain)
+                            .font(.body)
+                            .onExitCommand { commitTitle() }
+                        Button(action: commitTitle) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundStyle(.green)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                } else {
+                    Text(todo.title.isEmpty ? "新待办" : todo.title)
+                        .font(.body)
+                        .lineLimit(2)
+                        .strikethrough(todo.isCompleted)
+                        .foregroundStyle(todo.isCompleted ? .secondary : .primary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .onTapGesture(count: 2) {
+                            editTitle = todo.title
+                            isEditingTitle = true
+                        }
+                }
 
                 Spacer(minLength: 8)
 
-                // ── 右侧图标 ──
-                HStack(spacing: 16) {
-                    // ➕ 添加子待办
-                    Button(action: { showSubtaskInput.toggle() }) {
-                        Image(systemName: "plus")
-                            .font(.system(size: 14, weight: .regular))
-                    }
-                    .buttonStyle(.plain)
-                    .help("添加子待办")
+                if !isEditingTitle {
+                    // ── 右侧三个大按钮 ──
+                    HStack(spacing: 0) {
+                        // ➕ 添加子待办
+                        bigIcon("plus", color: .secondary)
+                            .onTapGesture { showSubtaskInput.toggle() }
 
-                    // —— 划掉
-                    Button(action: { viewModel.toggleTodoCompletion(todo) }) {
-                        Image(systemName: "minus")
-                            .font(.system(size: 14, weight: .regular))
-                            .foregroundStyle(todo.isCompleted ? .green : .primary)
-                    }
-                    .buttonStyle(.plain)
-                    .help(todo.isCompleted ? "取消完成" : "标记完成")
+                        // —— 划掉/取消（可切换）
+                        bigIcon("minus", color: todo.isCompleted ? .green : .secondary)
+                            .onTapGesture { viewModel.toggleTodoCompletion(todo) }
 
-                    // ✕ 删除
-                    Button(action: { showDeleteAlert = true }) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 13, weight: .regular))
+                        // ✕ 删除
+                        bigIcon("xmark", color: .secondary)
+                            .onTapGesture { showDeleteAlert = true }
                     }
-                    .buttonStyle(.plain)
-                    .help("删除")
                 }
-                .foregroundStyle(.secondary)
             }
-            .padding(.vertical, 10)
+            .padding(.vertical, 12)
             .padding(.horizontal, 14)
 
             // ── 子待办列表 ──
@@ -73,7 +86,7 @@ struct TodoCardView: View {
                             .environmentObject(viewModel)
                     }
                 }
-                .padding(.leading, 32)
+                .padding(.leading, 34)
                 .padding(.trailing, 14)
                 .padding(.bottom, 6)
             }
@@ -91,13 +104,13 @@ struct TodoCardView: View {
                         .foregroundStyle(.secondary)
                         .onSubmit { addSubtask() }
                     Button(action: addSubtask) {
-                        Image(systemName: "return")
+                        Text("添加")
                             .font(.caption)
                             .foregroundStyle(.blue)
                     }
                     .buttonStyle(.plain)
                 }
-                .padding(.leading, 32)
+                .padding(.leading, 34)
                 .padding(.trailing, 14)
                 .padding(.bottom, 10)
             }
@@ -119,9 +132,27 @@ struct TodoCardView: View {
         }
     }
 
+    // MARK: - 大图标（加大的点击区域）
+    private func bigIcon(_ name: String, color: Color) -> some View {
+        Image(systemName: name)
+            .font(.system(size: iconSize, weight: .regular))
+            .foregroundStyle(color)
+            .frame(minWidth: hitWidth, minHeight: hitHeight)
+            .contentShape(Rectangle())
+    }
+
     private func addSubtask() {
+        guard !subtaskText.trimmingCharacters(in: .whitespaces).isEmpty else { return }
         viewModel.addSubtask(to: todo, title: subtaskText)
         subtaskText = ""
+        showSubtaskInput = false // 添加后关闭，不留空输入行
+    }
+
+    private func commitTitle() {
+        guard !editTitle.isEmpty else { isEditingTitle = false; return }
+        todo.title = editTitle
+        viewModel.saveTodo(todo)
+        isEditingTitle = false
     }
 }
 
@@ -145,30 +176,30 @@ struct SubtaskLineView: View {
                 .lineLimit(1)
                 .strikethrough(subtask.isCompleted)
                 .foregroundStyle(subtask.isCompleted ? .secondary : .primary)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer()
 
-            HStack(spacing: 12) {
-                // 划掉
-                Button(action: { viewModel.toggleSubtaskCompletion(subtask) }) {
-                    Image(systemName: "minus")
-                        .font(.system(size: 11))
-                        .foregroundStyle(subtask.isCompleted ? .green : .secondary)
-                }
-                .buttonStyle(.plain)
-                .help("划掉")
+            // 子待办按钮（同样加大）
+            HStack(spacing: 0) {
+                // —— 划掉/取消划掉
+                Image(systemName: "minus")
+                    .font(.system(size: 15))
+                    .foregroundStyle(subtask.isCompleted ? .green : .secondary)
+                    .frame(minWidth: 30, minHeight: 26)
+                    .contentShape(Rectangle())
+                    .onTapGesture { viewModel.toggleSubtaskCompletion(subtask) }
 
-                // 删除
-                Button(action: { showDeleteAlert = true }) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .help("删除")
+                // ✕ 删除
+                Image(systemName: "xmark")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.secondary)
+                    .frame(minWidth: 30, minHeight: 26)
+                    .contentShape(Rectangle())
+                    .onTapGesture { showDeleteAlert = true }
             }
         }
-        .padding(.vertical, 3)
+        .padding(.vertical, 4)
         .alert("删除子待办", isPresented: $showDeleteAlert) {
             Button("取消", role: .cancel) {}
             Button("删除", role: .destructive) { viewModel.deleteSubtask(subtask) }
