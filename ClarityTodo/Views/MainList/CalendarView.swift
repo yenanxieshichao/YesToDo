@@ -1,82 +1,86 @@
 import SwiftUI
 
-struct CalendarView: View {
-    @EnvironmentObject var appState: AppState
+/// 小巧的日历弹出视图，适合放在 popover 里
+struct CompactCalendarView: View {
+    @Binding var selectedDate: Date
+    @Binding var isPresented: Bool
     @EnvironmentObject var viewModel: TodoViewModel
     @State private var currentMonth: Date = Date()
-    @State private var selectedDate: Date = Date()
 
     private let calendar = Calendar.current
-    private let weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    private let weekDays = ["日", "一", "二", "三", "四", "五", "六"]
 
     var body: some View {
-        VStack(spacing: 8) {
-            // Month navigation
+        VStack(spacing: 6) {
+            // 月份切换
             HStack {
                 Button(action: { moveMonth(by: -1) }) {
                     Image(systemName: "chevron.left")
-                        .font(.body)
+                        .font(.caption)
                 }
                 .buttonStyle(.plain)
 
                 Spacer()
 
                 Text(monthYearString(from: currentMonth))
-                    .font(.headline)
+                    .font(.subheadline)
                     .fontWeight(.semibold)
 
                 Spacer()
 
                 Button(action: { moveMonth(by: 1) }) {
                     Image(systemName: "chevron.right")
-                        .font(.body)
+                        .font(.caption)
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 4)
 
-            // Week day headers
+            // 星期行
             HStack {
                 ForEach(weekDays, id: \.self) { day in
                     Text(day)
-                        .font(.caption2)
-                        .fontWeight(.medium)
+                        .font(.system(size: 10))
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity)
                 }
             }
 
-            // Calendar grid
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 4) {
+            // 日期网格
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 2) {
                 ForEach(daysInMonth(), id: \.self) { date in
                     if let date = date {
-                        DayCell(
+                        CompactDayCell(
                             date: date,
                             isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
                             isToday: calendar.isDateInToday(date),
-                            hasTodos: hasTodos(on: date),
-                            todoCount: todoCount(on: date)
+                            hasTodos: hasTodos(on: date)
                         )
                         .onTapGesture {
                             selectedDate = date
-                            appState.filterDate = date
-                            appState.selectedSidebarItem = .calendar
+                            isPresented = false // 选完自动关闭
                         }
                     } else {
                         Color.clear
-                            .frame(height: 32)
+                            .frame(height: 26)
                     }
                 }
             }
+
+            // 快捷跳转今天
+            if !calendar.isDateInToday(selectedDate) {
+                Divider()
+                Button("回到今天") {
+                    selectedDate = Date()
+                    isPresented = false
+                }
+                .font(.caption)
+                .buttonStyle(.plain)
+                .foregroundStyle(.blue)
+            }
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(nsColor: .controlBackgroundColor))
-                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 2)
-        )
-        .padding(.horizontal, 12)
-        .padding(.vertical, 4)
+        .padding(10)
+        .frame(width: 210)
     }
 
     private func moveMonth(by amount: Int) {
@@ -86,27 +90,23 @@ struct CalendarView: View {
     }
 
     private func monthYearString(from date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMMM yyyy"
-        return formatter.string(from: date)
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_CN")
+        f.dateFormat = "M月"
+        return f.string(from: date)
     }
 
     private func daysInMonth() -> [Date?] {
         guard let monthInterval = calendar.dateInterval(of: .month, for: currentMonth),
-              let monthFirstWeekday = calendar.dateInterval(of: .weekOfMonth, for: monthInterval.start)
+              let monthStart = monthInterval.start as Date?
         else { return [] }
 
-        var days: [Date?] = []
-        let weekdayOffset = calendar.component(.weekday, from: monthInterval.start) - 1
-        // Add padding for days before the 1st
-        for _ in 0..<weekdayOffset {
-            days.append(nil)
-        }
+        let weekdayOffset = calendar.component(.weekday, from: monthStart) - 1
+        var days: [Date?] = Array(repeating: nil, count: weekdayOffset)
 
-        // Add all days in month
         let daysInMonth = calendar.range(of: .day, in: .month, for: currentMonth)!.count
         for day in 1...daysInMonth {
-            if let date = calendar.date(byAdding: .day, value: day - 1, to: monthInterval.start) {
+            if let date = calendar.date(byAdding: .day, value: day - 1, to: monthStart) {
                 days.append(date)
             }
         }
@@ -115,50 +115,34 @@ struct CalendarView: View {
     }
 
     private func hasTodos(on date: Date) -> Bool {
-        return viewModel.todos.contains { todo in
+        viewModel.todos.contains { todo in
             guard let dueDate = todo.dueDate else { return false }
             return calendar.isDate(dueDate, inSameDayAs: date)
         }
     }
-
-    private func todoCount(on date: Date) -> Int {
-        return viewModel.todos.filter { todo in
-            guard let dueDate = todo.dueDate else { return false }
-            return calendar.isDate(dueDate, inSameDayAs: date)
-        }.count
-    }
 }
 
-struct DayCell: View {
+struct CompactDayCell: View {
     let date: Date
     let isSelected: Bool
     let isToday: Bool
     let hasTodos: Bool
-    let todoCount: Int
 
     var body: some View {
-        VStack(spacing: 2) {
-            Text("\(Calendar.current.component(.day, from: date))")
-                .font(.system(size: 12, weight: isToday ? .bold : .regular))
-                .foregroundStyle(foregroundColor)
-                .frame(width: 28, height: 28)
-                .background(backgroundView)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-
-            if hasTodos {
-                HStack(spacing: 3) {
-                    Circle()
-                        .fill(.blue.opacity(0.5))
-                        .frame(width: 4, height: 4)
-                    if todoCount > 1 {
-                        Text("\(todoCount)")
-                            .font(.system(size: 8))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-        }
-        .frame(height: 36)
+        Text("\(Calendar.current.component(.day, from: date))")
+            .font(.system(size: 12, weight: isToday ? .bold : .regular))
+            .foregroundStyle(foregroundColor)
+            .frame(width: 24, height: 24)
+            .background(backgroundView)
+            .clipShape(RoundedRectangle(cornerRadius: 5))
+            .overlay(
+                hasTodos && !isSelected
+                    ? Circle()
+                        .fill(.blue)
+                        .frame(width: 3, height: 3)
+                        .offset(y: 8)
+                    : nil
+            )
     }
 
     private var foregroundColor: Color {
@@ -169,13 +153,9 @@ struct DayCell: View {
 
     private var backgroundView: some View {
         Group {
-            if isSelected {
-                Color.blue
-            } else if isToday {
-                Color.blue.opacity(0.1)
-            } else {
-                Color.clear
-            }
+            if isSelected { Color.blue }
+            else if isToday { Color.blue.opacity(0.1) }
+            else { Color.clear }
         }
     }
 }

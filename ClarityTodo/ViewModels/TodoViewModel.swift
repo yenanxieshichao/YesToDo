@@ -6,20 +6,12 @@ import Combine
 class TodoViewModel: ObservableObject {
     @Published var todos: [TodoItem] = []
     @Published var selectedTodo: TodoItem? = nil
-    @Published var searchText: String = ""
-    @Published var filterCompleted: Bool = false
     @Published var isLoading: Bool = false
 
     private var modelContext: ModelContext?
     private var cancellables = Set<AnyCancellable>()
 
-    init() {
-        NotificationCenter.default.publisher(for: .newTodoCommand)
-            .sink { [weak self] _ in
-                self?.createNewTodo()
-            }
-            .store(in: &cancellables)
-    }
+    init() {}
 
     func setup(with context: ModelContext) {
         self.modelContext = context
@@ -35,22 +27,34 @@ class TodoViewModel: ObservableObject {
         do {
             todos = try context.fetch(descriptor)
         } catch {
-            print("Failed to load todos: \(error)")
+            print("加载待办失败: \(error)")
         }
         isLoading = false
     }
 
-    func createNewTodo(date: Date? = nil) {
-        guard let context = modelContext else { return }
+    /// 获取指定日期的待办（含已完成的）
+    func todosForDate(_ date: Date) -> [TodoItem] {
+        let calendar = Calendar.current
+        return todos.filter { todo in
+            guard let dueDate = todo.dueDate else { return false }
+            return calendar.isDate(dueDate, inSameDayAs: date)
+        }
+    }
+
+    /// 创建待办：直接输入标题 + 指定日期
+    func createTodo(title: String, date: Date) -> TodoItem? {
+        guard let context = modelContext, !title.trimmingCharacters(in: .whitespaces).isEmpty else { return nil }
         let newTodo = TodoItem(
-            title: "",
+            title: title.trimmingCharacters(in: .whitespaces),
             dueDate: date,
-            isCompleted: false
+            isCompleted: false,
+            sortOrder: todos.count
         )
         context.insert(newTodo)
         try? context.save()
         loadTodos()
         selectedTodo = newTodo
+        return newTodo
     }
 
     func saveTodo(_ todo: TodoItem) {
@@ -76,9 +80,9 @@ class TodoViewModel: ObservableObject {
     }
 
     func addSubtask(to todo: TodoItem, title: String) {
-        guard let context = modelContext else { return }
+        guard let context = modelContext, !title.trimmingCharacters(in: .whitespaces).isEmpty else { return }
         let subtask = SubtaskItem(
-            title: title,
+            title: title.trimmingCharacters(in: .whitespaces),
             sortOrder: todo.subtasks.count
         )
         todo.subtasks.append(subtask)
@@ -105,55 +109,4 @@ class TodoViewModel: ObservableObject {
         try? context.save()
         loadTodos()
     }
-
-    func filteredTodos(for sidebarItem: SidebarItem) -> [TodoItem] {
-        var result = todos
-
-        // Apply search filter
-        if !searchText.isEmpty {
-            result = result.filter { todo in
-                todo.title.localizedCaseInsensitiveContains(searchText) ||
-                todo.plainTextDescription.localizedCaseInsensitiveContains(searchText)
-            }
-        }
-
-        // Apply sidebar filter
-        switch sidebarItem {
-        case .today:
-            let calendar = Calendar.current
-            result = result.filter { todo in
-                guard let dueDate = todo.dueDate else { return false }
-                return calendar.isDateInToday(dueDate) && !todo.isCompleted
-            }
-        case .upcoming:
-            let calendar = Calendar.current
-            let today = calendar.startOfDay(for: Date())
-            result = result.filter { todo in
-                guard let dueDate = todo.dueDate else { return false }
-                return calendar.startOfDay(for: dueDate) >= today && !todo.isCompleted
-            }
-            result.sort { a, b in
-                (a.dueDate ?? .distantFuture) < (b.dueDate ?? .distantFuture)
-            }
-        case .calendar:
-            // Filter is handled separately when a date is selected
-            break
-        case .completed:
-            result = result.filter { $0.isCompleted }
-        }
-
-        return result
-    }
-
-    func todosForDate(_ date: Date) -> [TodoItem] {
-        let calendar = Calendar.current
-        return todos.filter { todo in
-            guard let dueDate = todo.dueDate else { return false }
-            return calendar.isDate(dueDate, inSameDayAs: date)
-        }
-    }
-}
-
-extension Notification.Name {
-    static let newTodoCommand = Notification.Name("newTodoCommand")
 }

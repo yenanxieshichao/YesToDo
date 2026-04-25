@@ -13,19 +13,18 @@ struct DetailView: View {
                 DetailEmptyState()
             }
         }
-        .frame(minWidth: 300)
+        .frame(minWidth: 280)
     }
 }
 
 struct DetailEmptyState: View {
     var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "square.and.pencil")
-                .font(.system(size: 36))
-                .foregroundStyle(.quaternary)
-            Text("Select a todo to edit")
+        VStack(spacing: 8) {
+            Spacer()
+            Text("选择一条待办查看详情")
                 .font(.body)
                 .foregroundStyle(.tertiary)
+            Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(nsColor: .controlBackgroundColor))
@@ -46,10 +45,10 @@ struct TodoDetailContent: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                // Title
-                TextField("Todo title", text: $title)
-                    .font(.title2)
+            VStack(alignment: .leading, spacing: 12) {
+                // 标题
+                TextField("待办标题", text: $title)
+                    .font(.title3)
                     .fontWeight(.semibold)
                     .textFieldStyle(.plain)
                     .onSubmit {
@@ -57,28 +56,24 @@ struct TodoDetailContent: View {
                         viewModel.saveTodo(todo)
                     }
 
-                // Metadata row
-                HStack(spacing: 12) {
-                    // Due date toggle
+                // 元数据行
+                HStack(spacing: 10) {
+                    // 日期
                     Button(action: {
                         hasDueDate.toggle()
-                        if hasDueDate {
-                            todo.dueDate = dueDate
-                        } else {
-                            todo.dueDate = nil
-                        }
+                        todo.dueDate = hasDueDate ? dueDate : nil
                         viewModel.saveTodo(todo)
                     }) {
                         HStack(spacing: 4) {
                             Image(systemName: hasDueDate ? "calendar.circle.fill" : "calendar.circle")
-                            Text(hasDueDate ? "Due \(formatDate(dueDate))" : "Add due date")
+                            Text(hasDueDate ? formatDate(dueDate) : "添加日期")
                                 .font(.caption)
                         }
                         .foregroundStyle(hasDueDate ? .blue : .secondary)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
                         .background(.quaternary.opacity(0.3))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
                     }
                     .buttonStyle(.plain)
 
@@ -86,28 +81,18 @@ struct TodoDetailContent: View {
                         DatePicker("", selection: $dueDate, displayedComponents: .date)
                             .datePickerStyle(.compact)
                             .labelsHidden()
+                            .scaleEffect(0.85)
                             .onChange(of: dueDate) { _, newDate in
                                 todo.dueDate = newDate
                                 viewModel.saveTodo(todo)
                             }
                     }
 
-                    Spacer()
-
-                    // Color picker
+                    // 颜色
                     Button(action: { showColorPicker.toggle() }) {
-                        HStack(spacing: 4) {
-                            Circle()
-                                .fill(colorFromTag(selectedColor))
-                                .frame(width: 10, height: 10)
-                            Text("Color")
-                                .font(.caption)
-                        }
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(.quaternary.opacity(0.3))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        Circle()
+                            .fill(colorFromTag(selectedColor))
+                            .frame(width: 14, height: 14)
                     }
                     .buttonStyle(.plain)
                     .popover(isPresented: $showColorPicker) {
@@ -117,26 +102,36 @@ struct TodoDetailContent: View {
                         }
                         .padding(8)
                     }
+
+                    Spacer()
+
+                    // 删除
+                    Button(action: { showDeleteAlert = true }) {
+                        Image(systemName: "trash")
+                            .font(.caption)
+                            .foregroundStyle(.red.opacity(0.7))
+                    }
+                    .buttonStyle(.plain)
+                    .help("删除待办")
                 }
 
                 Divider()
 
-                // Subtasks
+                // 子任务
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Subtasks")
+                    Text("子任务")
                         .font(.caption)
-                        .fontWeight(.semibold)
                         .foregroundStyle(.secondary)
 
                     ForEach(todo.subtasks.sorted(by: { $0.sortOrder < $1.sortOrder })) { subtask in
-                        SubtaskRow(subtask: subtask)
+                        SubtaskRow(subtask: subtask, parentTodo: todo)
                     }
 
-                    Button(action: { addSubtask() }) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "plus.circle")
+                    Button(action: { viewModel.addSubtask(to: todo, title: "新子任务") }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "plus")
                                 .font(.caption)
-                            Text("Add subtask")
+                            Text("添加")
                                 .font(.caption)
                         }
                         .foregroundStyle(.blue)
@@ -144,60 +139,41 @@ struct TodoDetailContent: View {
                     .buttonStyle(.plain)
                 }
 
-                // Rich text description
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Description")
+                Divider()
+
+                // 富文本描述
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("描述")
                         .font(.caption)
-                        .fontWeight(.semibold)
                         .foregroundStyle(.secondary)
 
                     RichTextEditor(attributedString: $attributedDescription)
-                        .frame(minHeight: 120, maxHeight: 300)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .frame(minHeight: 100, maxHeight: 250)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 8)
+                            RoundedRectangle(cornerRadius: 6)
                                 .stroke(Color.primary.opacity(0.1), lineWidth: 0.5)
                         )
                 }
-
-                // Delete button
-                Button(action: { showDeleteAlert = true }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "trash")
-                        Text("Delete Todo")
-                    }
-                    .font(.body)
-                    .foregroundStyle(.red)
-                    .padding(.vertical, 8)
-                    .padding(.horizontal, 16)
-                    .background(.red.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
-                .buttonStyle(.plain)
             }
-            .padding(20)
+            .padding(16)
         }
         .background(Color(nsColor: .controlBackgroundColor))
-        .onAppear {
-            loadTodoData()
-        }
-        .onChange(of: todo) { _, _ in
-            loadTodoData()
-        }
+        .onAppear { loadData() }
+        .onChange(of: todo) { _, _ in loadData() }
         .onChange(of: attributedDescription) { _, newValue in
-            saveRichText(newValue)
+            DataService.shared.saveRichText(newValue, to: todo)
+            viewModel.saveTodo(todo)
         }
-        .alert("Delete Todo", isPresented: $showDeleteAlert) {
-            Button("Cancel", role: .cancel) {}
-            Button("Delete", role: .destructive) {
-                viewModel.deleteTodo(todo)
-            }
+        .alert("删除待办", isPresented: $showDeleteAlert) {
+            Button("取消", role: .cancel) {}
+            Button("删除", role: .destructive) { viewModel.deleteTodo(todo) }
         } message: {
-            Text("Are you sure you want to delete \"\(todo.title)\"?")
+            Text("确定要删除「\(todo.title)」吗？")
         }
     }
 
-    private func loadTodoData() {
+    private func loadData() {
         title = todo.title
         hasDueDate = todo.dueDate != nil
         dueDate = todo.dueDate ?? Date()
@@ -205,31 +181,19 @@ struct TodoDetailContent: View {
         attributedDescription = DataService.shared.loadRichText(from: todo)
     }
 
-    private func saveRichText(_ attrString: NSAttributedString) {
-        DataService.shared.saveRichText(attrString, to: todo)
-        viewModel.saveTodo(todo)
-    }
-
-    private func addSubtask() {
-        viewModel.addSubtask(to: todo, title: "New subtask")
-    }
-
     private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-        return formatter.string(from: date)
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_CN")
+        f.dateFormat = "M月d日"
+        return f.string(from: date)
     }
 
     private func colorFromTag(_ tag: String) -> Color {
         switch tag {
-        case "red": return .red
-        case "orange": return .orange
-        case "yellow": return .yellow
-        case "green": return .green
-        case "blue": return .blue
-        case "purple": return .purple
-        case "pink": return .pink
-        default: return .blue
+        case "red": return .red; case "orange": return .orange
+        case "yellow": return .yellow; case "green": return .green
+        case "blue": return .blue; case "purple": return .purple
+        case "pink": return .pink; default: return .blue
         }
     }
 }
@@ -238,45 +202,33 @@ struct SubtaskRow: View {
     @EnvironmentObject var viewModel: TodoViewModel
     @State private var title: String = ""
     let subtask: SubtaskItem
+    let parentTodo: TodoItem
 
     var body: some View {
-        HStack(spacing: 8) {
-            // Completion checkbox
-            Button(action: {
-                viewModel.toggleSubtaskCompletion(subtask)
-            }) {
-                Image(systemName: subtask.isCompleted ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(subtask.isCompleted ? .green : .secondary)
-                    .font(.system(size: 14))
-            }
-            .buttonStyle(.plain)
+        HStack(spacing: 6) {
+            Image(systemName: subtask.isCompleted ? "checkmark.circle.fill" : "circle")
+                .foregroundStyle(subtask.isCompleted ? .green : .secondary)
+                .font(.system(size: 12))
+                .onTapGesture { viewModel.toggleSubtaskCompletion(subtask) }
 
-            // Title
-            TextField("Subtask", text: $title)
+            TextField("子任务", text: $title)
                 .textFieldStyle(.plain)
                 .font(.callout)
                 .strikethrough(subtask.isCompleted)
                 .foregroundStyle(subtask.isCompleted ? .secondary : .primary)
                 .onSubmit {
                     subtask.title = title
-                    subtask.updateTimestamp()
                     viewModel.loadTodos()
                 }
 
-            Spacer()
-
-            // Delete
             Button(action: { viewModel.deleteSubtask(subtask) }) {
                 Image(systemName: "xmark.circle.fill")
                     .font(.caption)
-                    .foregroundStyle(.secondary.opacity(0.5))
+                    .foregroundStyle(.secondary.opacity(0.4))
             }
             .buttonStyle(.plain)
         }
-        .padding(.leading, 4)
-        .onAppear {
-            title = subtask.title
-        }
+        .onAppear { title = subtask.title }
     }
 }
 
@@ -285,11 +237,11 @@ struct ColorPickerView: View {
     let onSelect: (String) -> Void
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             ForEach(colorTags, id: \.name) { tag in
                 Circle()
                     .fill(colorFromTag(tag.color))
-                    .frame(width: 24, height: 24)
+                    .frame(width: 20, height: 20)
                     .overlay(
                         Circle()
                             .stroke(tag.color == selectedColor ? Color.primary : Color.clear, lineWidth: 2)
@@ -304,14 +256,10 @@ struct ColorPickerView: View {
 
     private func colorFromTag(_ tag: String) -> Color {
         switch tag {
-        case "red": return .red
-        case "orange": return .orange
-        case "yellow": return .yellow
-        case "green": return .green
-        case "blue": return .blue
-        case "purple": return .purple
-        case "pink": return .pink
-        default: return .blue
+        case "red": return .red; case "orange": return .orange
+        case "yellow": return .yellow; case "green": return .green
+        case "blue": return .blue; case "purple": return .purple
+        case "pink": return .pink; default: return .blue
         }
     }
 }

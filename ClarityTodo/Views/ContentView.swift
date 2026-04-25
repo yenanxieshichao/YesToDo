@@ -8,20 +8,19 @@ struct ContentView: View {
     @Query(sort: \TodoItem.sortOrder) private var todos: [TodoItem]
 
     var body: some View {
-        NavigationSplitView {
-            SidebarView()
-                .environmentObject(appState)
-                .environmentObject(viewModel)
-        } content: {
+        HSplitView {
+            // 左侧：今日待办清单
             MainListView()
                 .environmentObject(appState)
                 .environmentObject(viewModel)
-        } detail: {
+                .frame(minWidth: 320, idealWidth: 380)
+
+            // 右侧：详情编辑
             DetailView()
                 .environmentObject(appState)
                 .environmentObject(viewModel)
+                .frame(minWidth: 300, idealWidth: 360)
         }
-        .navigationSplitViewStyle(.balanced)
         .onAppear {
             viewModel.setup(with: modelContext)
         }
