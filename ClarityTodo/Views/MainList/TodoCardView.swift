@@ -124,7 +124,7 @@ struct TodoCardView: View {
     private var displayTitleView: some View {
         Text(todo.title.isEmpty ? "新待办" : todo.title)
             .font(.system(size: CGFloat(todo.titleFontSize), weight: .medium))
-            .lineLimit(2)
+            .lineLimit(3)
             .strikethrough(todo.isCompleted, color: Color.secondary.opacity(0.5))
             .foregroundStyle(todo.isCompleted ? Color.secondary.opacity(0.65) : .primary)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -297,7 +297,7 @@ struct SubtaskLineView: View {
 
             Text(subtask.title)
                 .font(.system(size: 15))
-                .lineLimit(1)
+                .lineLimit(3)
                 .strikethrough(subtask.isCompleted, color: Color.secondary.opacity(0.5))
                 .foregroundStyle(subtask.isCompleted ? Color.secondary.opacity(0.65) : Color.primary)
                 .frame(maxWidth: .infinity, alignment: .leading)
