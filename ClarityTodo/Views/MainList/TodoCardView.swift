@@ -5,6 +5,7 @@ import AppKit
 struct TodoCardView: View {
     let index: Int
     let todo: TodoItem
+    let alignCenter: Bool
     @EnvironmentObject var viewModel: TodoViewModel
 
     @State private var showSubtaskInput = false
@@ -38,7 +39,7 @@ struct TodoCardView: View {
                 Spacer(minLength: 8)
 
                 if !isEditingTitle {
-                    // 字体按钮（打开字体面板）
+                    // 字体按钮
                     Button(action: { showFontPanel.toggle() }) {
                         Image(systemName: "textformat")
                             .font(.system(size: 14))
@@ -47,7 +48,6 @@ struct TodoCardView: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .help("字体设置")
                     .popover(isPresented: $showFontPanel, arrowEdge: .top) {
                         FontSettingsPanel(
                             fontSize: Binding(
@@ -59,13 +59,17 @@ struct TodoCardView: View {
                         .frame(width: 200)
                     }
 
-                    // ── 右侧三个大按钮 ──
+                    // ── 右侧三个大按钮（对号替代减号）──
                     HStack(spacing: 0) {
-                        bigIcon("plus", color: .secondary)
+                        // ➕ 加子待办
+                        bigIcon("plus")
                             .onTapGesture { showSubtaskInput.toggle() }
-                        bigIcon("minus", color: todo.isCompleted ? .green : .secondary)
+                        // ✓ 完成/取消
+                        bigIcon("checkmark")
+                            .foregroundStyle(todo.isCompleted ? .green : .secondary)
                             .onTapGesture { viewModel.toggleTodoCompletion(todo) }
-                        bigIcon("xmark", color: .secondary)
+                        // ✕ 删除
+                        bigIcon("xmark")
                             .onTapGesture { showDeleteAlert = true }
                     }
                 }
@@ -81,7 +85,7 @@ struct TodoCardView: View {
                             .environmentObject(viewModel)
                     }
                 }
-                .padding(.leading, 36)
+                .padding(.leading, alignCenter ? 0 : 36)
                 .padding(.trailing, 14)
                 .padding(.bottom, 6)
             }
@@ -108,26 +112,27 @@ struct TodoCardView: View {
         }
     }
 
-    // MARK: - 显示标题（已完成也能双击编辑）
+    // MARK: - 显示标题
     private var displayTitleView: some View {
         Text(todo.title.isEmpty ? "新待办" : todo.title)
             .font(.system(size: CGFloat(todo.titleFontSize), weight: .medium))
             .lineLimit(2)
             .strikethrough(todo.isCompleted, color: Color.secondary.opacity(0.5))
             .foregroundStyle(todo.isCompleted ? Color.secondary.opacity(0.65) : .primary)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: alignCenter ? .center : .leading)
             .onTapGesture(count: 2) {
                 editTitle = todo.title
                 isEditingTitle = true
             }
     }
 
-    // MARK: - 编辑标题（干净，字体功能移到按钮 popover）
+    // MARK: - 编辑标题
     private var editingTitleView: some View {
         HStack(spacing: 6) {
             TextField("待办标题", text: $editTitle, onCommit: commitTitle)
                 .textFieldStyle(.plain)
                 .font(.system(size: CGFloat(todo.titleFontSize), weight: .medium))
+                .multilineTextAlignment(alignCenter ? .center : .leading)
                 .onExitCommand { commitTitle() }
 
             Button(action: commitTitle) {
@@ -142,7 +147,7 @@ struct TodoCardView: View {
     // MARK: - 子待办输入
     private var subtaskInputView: some View {
         HStack(spacing: 8) {
-            Text("    ")
+            Text(alignCenter ? "" : "    ")
             Image(systemName: "plus.circle.fill")
                 .font(.system(size: 11))
                 .foregroundStyle(.blue)
@@ -158,16 +163,16 @@ struct TodoCardView: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.leading, 36)
+        .padding(.leading, alignCenter ? 16 : 36)
         .padding(.trailing, 14)
         .padding(.bottom, 10)
     }
 
     // MARK: - 大图标
-    private func bigIcon(_ name: String, color: Color) -> some View {
+    private func bigIcon(_ name: String) -> some View {
         Image(systemName: name)
             .font(.system(size: iconSize, weight: .regular))
-            .foregroundStyle(color)
+            .foregroundStyle(.secondary)
             .frame(minWidth: hitWidth, minHeight: hitHeight)
             .contentShape(Rectangle())
     }
@@ -187,13 +192,12 @@ struct TodoCardView: View {
     }
 }
 
-// MARK: - 字体设置面板（参考 macOS 便签）
+// MARK: - 字体设置面板
 struct FontSettingsPanel: View {
     @Binding var fontSize: CGFloat
 
     var body: some View {
         VStack(spacing: 12) {
-            // 标题
             HStack {
                 Image(systemName: "textformat")
                     .font(.system(size: 12))
@@ -203,7 +207,6 @@ struct FontSettingsPanel: View {
                     .foregroundStyle(.secondary)
             }
 
-            // 字号滑块
             HStack(spacing: 8) {
                 Button(action: { adjustSize(-1) }) {
                     Image(systemName: "minus")
@@ -227,7 +230,6 @@ struct FontSettingsPanel: View {
                 .buttonStyle(.plain)
             }
 
-            // 预设字号
             HStack(spacing: 4) {
                 ForEach([12, 14, 16, 18, 20, 24, 28, 32], id: \.self) { size in
                     Button(action: { fontSize = CGFloat(size) }) {
@@ -243,7 +245,6 @@ struct FontSettingsPanel: View {
                 }
             }
 
-            // 预览
             VStack(spacing: 2) {
                 Divider()
                 Text("预览")
@@ -274,10 +275,9 @@ struct SubtaskLineView: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Text("    ")
-            Image(systemName: "minus")
+            Image(systemName: "checkmark")
                 .font(.system(size: 10))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(subtask.isCompleted ? Color.green : Color.secondary)
                 .frame(width: 12)
 
             Text(subtask.title)
@@ -290,13 +290,15 @@ struct SubtaskLineView: View {
             Spacer()
 
             HStack(spacing: 0) {
-                Image(systemName: "minus")
+                // ✓ 子待办完成/取消
+                Image(systemName: "checkmark")
                     .font(.system(size: 16))
                     .foregroundStyle(subtask.isCompleted ? .green : .secondary)
                     .frame(minWidth: 32, minHeight: 28)
                     .contentShape(Rectangle())
                     .onTapGesture { viewModel.toggleSubtaskCompletion(subtask) }
 
+                // ✕ 删除
                 Image(systemName: "xmark")
                     .font(.system(size: 15))
                     .foregroundStyle(.secondary)
@@ -306,6 +308,7 @@ struct SubtaskLineView: View {
             }
         }
         .padding(.vertical, 5)
+        .padding(.horizontal, 16)
         .alert("删除子待办", isPresented: $showDeleteAlert) {
             Button("取消", role: .cancel) {}
             Button("删除", role: .destructive) { viewModel.deleteSubtask(subtask) }
