@@ -9,7 +9,7 @@ struct ClarityTodoApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(appState)
-                .modelContainer(for: [TodoItem.self, SubtaskItem.self])
+                .modelContainer(sharedModelContainer)
                 .frame(minWidth: 780, minHeight: 500)
                 .preferredColorScheme(appState.colorScheme)
         }
@@ -78,6 +78,23 @@ class AppState: ObservableObject {
         return ""
     }
 }
+
+/// 共享 ModelContainer，支持自动迁移
+let sharedModelContainer: ModelContainer = {
+    let schema = Schema([TodoItem.self, SubtaskItem.self])
+    let config = ModelConfiguration(
+        schema: schema,
+        isStoredInMemoryOnly: false,
+        allowsSave: true
+    )
+    do {
+        return try ModelContainer(for: schema, configurations: config)
+    } catch {
+        // 如果 schema 不兼容，删掉旧的重新创建
+        try? FileManager.default.removeItem(at: config.url)
+        return try! ModelContainer(for: schema, configurations: config)
+    }
+}()
 
 extension Notification.Name {
     static let boldCommand = Notification.Name("boldCommand")
