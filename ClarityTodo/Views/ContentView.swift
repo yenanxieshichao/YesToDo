@@ -8,29 +8,15 @@ struct ContentView: View {
     @Query(sort: \TodoItem.sortOrder) private var todos: [TodoItem]
 
     var body: some View {
-        HSplitView {
-            // 左侧：今日待办清单
-            MainListView()
-                .environmentObject(appState)
-                .environmentObject(viewModel)
-                .frame(minWidth: 320, idealWidth: 380)
-
-            // 右侧：详情编辑
-            DetailView()
-                .environmentObject(appState)
-                .environmentObject(viewModel)
-                .frame(minWidth: 300, idealWidth: 360)
-        }
-        .onAppear {
-            viewModel.setup(with: modelContext)
-        }
-        .onChange(of: todos) { _, newTodos in
-            viewModel.todos = newTodos
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .deleteTodoCommand)) { _ in
-            if let todo = appState.selectedTodo {
-                viewModel.deleteTodo(todo)
+        MainListView()
+            .environmentObject(appState)
+            .environmentObject(viewModel)
+            .frame(minWidth: 500, minHeight: 400)
+            .onAppear {
+                viewModel.setup(with: modelContext)
             }
-        }
+            .onChange(of: todos) { _, newTodos in
+                viewModel.todos = newTodos
+            }
     }
 }
