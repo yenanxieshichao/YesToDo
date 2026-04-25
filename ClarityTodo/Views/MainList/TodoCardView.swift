@@ -61,14 +61,11 @@ struct TodoCardView: View {
 
                     // ── 右侧三个大按钮（对号替代减号）──
                     HStack(spacing: 0) {
-                        // ➕ 加子待办
                         bigIcon("plus")
                             .onTapGesture { showSubtaskInput.toggle() }
-                        // ✓ 完成/取消
                         bigIcon("checkmark")
                             .foregroundStyle(todo.isCompleted ? .green : .secondary)
                             .onTapGesture { viewModel.toggleTodoCompletion(todo) }
-                        // ✕ 删除
                         bigIcon("xmark")
                             .onTapGesture { showDeleteAlert = true }
                     }
@@ -77,16 +74,23 @@ struct TodoCardView: View {
             .padding(.vertical, 14)
             .padding(.horizontal, 16)
 
-            // ── 子待办列表 ──
+            // ── 子待办列表（带序号：1.1, 1.2…）──
             if !todo.subtasks.isEmpty {
                 VStack(spacing: 0) {
-                    ForEach(todo.subtasks.sorted(by: { $0.sortOrder < $1.sortOrder }), id: \.id) { subtask in
-                        SubtaskLineView(subtask: subtask, parentTodo: todo)
-                            .environmentObject(viewModel)
+                    ForEach(
+                        Array(todo.subtasks.sorted(by: { $0.sortOrder < $1.sortOrder }).enumerated()),
+                        id: \.element.id
+                    ) { subIdx, subtask in
+                        SubtaskLineView(
+                            parentIndex: index,
+                            subtaskIndex: subIdx + 1,
+                            subtask: subtask,
+                            parentTodo: todo,
+                            alignCenter: alignCenter
+                        )
+                        .environmentObject(viewModel)
                     }
                 }
-                .padding(.leading, alignCenter ? 0 : 36)
-                .padding(.trailing, 14)
                 .padding(.bottom, 6)
             }
 
@@ -147,7 +151,6 @@ struct TodoCardView: View {
     // MARK: - 子待办输入
     private var subtaskInputView: some View {
         HStack(spacing: 8) {
-            Text(alignCenter ? "" : "    ")
             Image(systemName: "plus.circle.fill")
                 .font(.system(size: 11))
                 .foregroundStyle(.blue)
@@ -163,7 +166,7 @@ struct TodoCardView: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.leading, alignCenter ? 16 : 36)
+        .padding(.leading, alignCenter ? 16 : 48)
         .padding(.trailing, 14)
         .padding(.bottom, 10)
     }
@@ -266,35 +269,39 @@ struct FontSettingsPanel: View {
     }
 }
 
-// MARK: - 子待办行
+// MARK: - 子待办行（带序号 1.1, 1.2…）
 struct SubtaskLineView: View {
-    @EnvironmentObject var viewModel: TodoViewModel
+    let parentIndex: Int
+    let subtaskIndex: Int
     let subtask: SubtaskItem
     let parentTodo: TodoItem
+    let alignCenter: Bool
+    @EnvironmentObject var viewModel: TodoViewModel
     @State private var showDeleteAlert = false
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "checkmark")
-                .font(.system(size: 10))
-                .foregroundStyle(subtask.isCompleted ? Color.green : Color.secondary)
-                .frame(width: 12)
+        HStack(spacing: 10) {
+            Text("\(parentIndex).\(subtaskIndex)")
+                .font(.system(size: 13, weight: .regular))
+                .foregroundStyle(.tertiary)
+                .frame(width: 34, alignment: .trailing)
 
             Text(subtask.title)
                 .font(.system(size: 15))
                 .lineLimit(1)
                 .strikethrough(subtask.isCompleted, color: Color.secondary.opacity(0.5))
                 .foregroundStyle(subtask.isCompleted ? Color.secondary.opacity(0.65) : Color.primary)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: alignCenter ? .center : .leading)
 
-            Spacer()
+            Spacer(minLength: 8)
 
+            // 子待办操作图标
             HStack(spacing: 0) {
-                // ✓ 子待办完成/取消
+                // ✓ 完成/取消
                 Image(systemName: "checkmark")
                     .font(.system(size: 16))
                     .foregroundStyle(subtask.isCompleted ? .green : .secondary)
-                    .frame(minWidth: 32, minHeight: 28)
+                    .frame(minWidth: 34, minHeight: 28)
                     .contentShape(Rectangle())
                     .onTapGesture { viewModel.toggleSubtaskCompletion(subtask) }
 
@@ -302,7 +309,7 @@ struct SubtaskLineView: View {
                 Image(systemName: "xmark")
                     .font(.system(size: 15))
                     .foregroundStyle(.secondary)
-                    .frame(minWidth: 32, minHeight: 28)
+                    .frame(minWidth: 34, minHeight: 28)
                     .contentShape(Rectangle())
                     .onTapGesture { showDeleteAlert = true }
             }
