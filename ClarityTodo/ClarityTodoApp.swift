@@ -10,7 +10,7 @@ struct ClarityTodoApp: App {
             ContentView()
                 .environmentObject(appState)
                 .modelContainer(sharedModelContainer)
-                .frame(minWidth: 780, minHeight: 500)
+                .frame(minWidth: 980, minHeight: 680)
                 .preferredColorScheme(appState.colorScheme)
         }
         .windowStyle(.titleBar)

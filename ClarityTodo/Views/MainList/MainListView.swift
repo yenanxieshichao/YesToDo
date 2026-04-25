@@ -4,8 +4,6 @@ struct MainListView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var viewModel: TodoViewModel
     @State private var newTodoText: String = ""
-    @State private var showDeleteAlert = false
-    @State private var todoToDelete: TodoItem? = nil
     @State private var showCalendarPopover = false
     @FocusState private var newTodoFocused: Bool
 
@@ -13,91 +11,107 @@ struct MainListView: View {
         viewModel.todosForDate(appState.selectedDate)
     }
 
+    private var completedCount: Int { dateTodos.filter(\.isCompleted).count }
+    private var progressPercent: Int {
+        dateTodos.isEmpty ? 0 : Int((Double(completedCount) / Double(dateTodos.count)) * 100)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            // ── 头部（居中）──
-            headerView
+            // ── Hero Header ──
+            heroHeader
                 .padding(.horizontal, 24)
                 .padding(.top, 24)
-                .padding(.bottom, 10)
+                .padding(.bottom, 6)
 
-            Divider()
-                .padding(.horizontal, 20)
+            // ── 统计条 ──
+            if !dateTodos.isEmpty {
+                statsRow
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 12)
+            }
 
-            // ── 待办列表 ──
-            if dateTodos.isEmpty {
-                emptyState
-            } else {
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(spacing: 6) {
+            // ── 待办列表容器 ──
+            ScrollView {
+                VStack(spacing: 0) {
+                    if dateTodos.isEmpty {
+                        PremiumEmptyState(
+                            icon: "sun.max",
+                            title: "今天很清爽",
+                            subtitle: "写下今天最重要的几件事，保持节奏就好。",
+                            hint: "按 ⌘N 快速添加"
+                        )
+                        .frame(minHeight: 300)
+                    } else {
+                        LazyVStack(spacing: 4) {
                             ForEach(Array(dateTodos.enumerated()), id: \.element.id) { index, todo in
                                 TodoCardView(index: index + 1, todo: todo)
                                     .environmentObject(viewModel)
                                     .environmentObject(appState)
-                                    .id(todo.id)
+                                    .transition(.move(edge: .top).combined(with: .opacity))
                             }
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.top, 12)
-                        .padding(.bottom, 8)
+                        .padding(.top, 4)
+                        .padding(.bottom, 80) // 给浮层栏留空间
                     }
-                    .scrollContentBackground(.hidden)
                 }
+                .padding(.horizontal, 20)
             }
-
-            Spacer(minLength: 0)
-
-            // ── 底部添加输入框 ──
-            addTodoBar
-        }
-        .background(
-            LinearGradient(
-                colors: [
-                    Color(nsColor: .windowBackgroundColor),
-                    Color(nsColor: .controlBackgroundColor)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-        )
-        .alert("删除待办", isPresented: $showDeleteAlert) {
-            Button("取消", role: .cancel) {}
-            Button("删除", role: .destructive) {
-                if let todo = todoToDelete { viewModel.deleteTodo(todo) }
-            }
-        } message: {
-            Text("确定要删除「\(todoToDelete?.title ?? "")」吗？")
+            .scrollContentBackground(.hidden)
         }
         .onReceive(NotificationCenter.default.publisher(for: .focusNewTodoCommand)) { _ in
             newTodoFocused = true
         }
+        .onChange(of: appState.selectedDate) { _, _ in
+            // 切换日期时取消选中
+            appState.selectedTodo = nil
+        }
+        .overlay(alignment: .bottom) {
+            // ── Floating Composer ──
+            floatingComposer
+                .padding(.horizontal, 20)
+                .padding(.bottom, 16)
+        }
     }
 
-    // MARK: - 头部（居中）
-    private var headerView: some View {
-        HStack {
-            Spacer()
-
-            VStack(alignment: .center, spacing: 4) {
-                Text(appState.headerTitle)
-                    .font(.system(size: 32, weight: .bold))
-                    .foregroundStyle(.primary)
-                if !appState.headerSubtitle.isEmpty {
-                    Text(appState.headerSubtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+    // MARK: - Hero Header
+    private var heroHeader: some View {
+        HStack(spacing: 12) {
+            // 品牌徽标
+            HStack(spacing: 6) {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.appBrand.primaryBlue)
+                    .frame(width: 24, height: 24)
+                    .overlay {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.white)
+                    }
+                Text("Clarity")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.tertiary)
             }
 
             Spacer()
 
+            // 日期间信息
+            VStack(alignment: .trailing, spacing: 0) {
+                Text(appState.headerTitle)
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundStyle(.primary)
+                if !appState.headerSubtitle.isEmpty {
+                    Text(appState.headerSubtitle)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+
+            // 日历按钮
             Button(action: { showCalendarPopover.toggle() }) {
                 Image(systemName: "calendar")
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(.secondary)
-                    .padding(8)
+                    .frame(width: 32, height: 32)
                     .background(.quaternary.opacity(0.3))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
             }
@@ -106,69 +120,77 @@ struct MainListView: View {
                 CompactCalendarView(selectedDate: $appState.selectedDate, isPresented: $showCalendarPopover)
                     .environmentObject(viewModel)
             }
-        }
-    }
 
-    // MARK: - 空状态
-    private var emptyState: some View {
-        VStack(spacing: 20) {
-            Spacer()
-            Image(systemName: "checkmark.circle")
-                .font(.system(size: 52))
-                .foregroundStyle(.quaternary)
-            Text("今天还没有待办")
-                .font(.title3)
-                .fontWeight(.medium)
-                .foregroundStyle(.secondary)
-            Text("在下方输入框添加今天要做的事")
-                .font(.subheadline)
-                .foregroundStyle(.tertiary)
-            Spacer()
-        }
-    }
-
-    // MARK: - 添加待办栏
-    private var addTodoBar: some View {
-        VStack(spacing: 0) {
-            Divider()
-            HStack(spacing: 12) {
-                Image(systemName: "plus.circle.fill")
-                    .font(.title3)
-                    .foregroundStyle(.blue)
-
-                TextField("输入新的待办事项…", text: $newTodoText)
-                    .textFieldStyle(.plain)
-                    .font(.body)
-                    .focused($newTodoFocused)
-                    .onSubmit { addNewTodo() }
-
-                Button(action: addNewTodo) {
-                    Text("添加")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 7)
-                        .background(
-                            newTodoText.trimmingCharacters(in: .whitespaces).isEmpty
-                                ? Color.blue.opacity(0.3)
-                                : Color.blue
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            // 回到今天（非今天时显示）
+            if !appState.isTodaySelected {
+                Button(action: { appState.selectedDate = Date() }) {
+                    Text("回到今天")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Color.appBrand.primaryBlue)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.blue.opacity(0.06))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
                 .buttonStyle(.plain)
-                .disabled(newTodoText.trimmingCharacters(in: .whitespaces).isEmpty)
-                .animation(.easeOut(duration: 0.15), value: newTodoText.isEmpty)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 14)
-            .background(.ultraThinMaterial)
         }
+    }
+
+    // MARK: - 统计条
+    private var statsRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                InfoChip(icon: "checklist", text: "今日待办 \(dateTodos.count)", color: .appBrand.primaryBlue)
+                InfoChip(icon: "checkmark.circle.fill", text: "已完成 \(completedCount)", color: .appBrand.successGreen)
+                InfoChip(icon: "percent", text: "完成率 \(progressPercent)%", color: .appBrand.warningAmber)
+                InfoChip(icon: "calendar", text: formatDateShort(appState.selectedDate), color: .inkTertiary)
+            }
+        }
+    }
+
+    // MARK: - Floating Composer
+    private var floatingComposer: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "plus.circle.fill")
+                .font(.system(size: 18))
+                .foregroundStyle(Color.appBrand.primaryBlue)
+
+            TextField("写下今天要做的事…", text: $newTodoText)
+                .textFieldStyle(.plain)
+                .font(.system(size: 15))
+                .focused($newTodoFocused)
+                .onSubmit { addNewTodo() }
+
+            PrimaryActionButton(
+                title: "添加",
+                disabled: newTodoText.trimmingCharacters(in: .whitespaces).isEmpty,
+                action: addNewTodo
+            )
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: PremiumRadius.xl, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .floatingShadow()
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: PremiumRadius.xl, style: .continuous)
+                .stroke(Color.cardBorder, lineWidth: 0.5)
+        )
     }
 
     private func addNewTodo() {
         guard let _ = viewModel.createTodo(title: newTodoText, date: appState.selectedDate) else { return }
         newTodoText = ""
         newTodoFocused = true
+    }
+
+    private func formatDateShort(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_CN")
+        f.dateFormat = "M月d日"
+        return f.string(from: date)
     }
 }

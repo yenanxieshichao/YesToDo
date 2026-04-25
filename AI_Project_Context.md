@@ -405,6 +405,7 @@ clarity-todo/
                                 R0/
                                 27/
                                 4B/
+                                XN/
                                 QS/
                                 WJ/
                                 4K/
@@ -499,6 +500,7 @@ clarity-todo/
                                 75/
                                 81/
                                 TQ/
+                                4V/
                                 X6/
                                 W2/
                                 TV/
@@ -749,6 +751,7 @@ clarity-todo/
                                 DC/
                                 HH/
                                 NQ/
+                                A9/
                                 GL/
                                 AU/
                                 AO/
@@ -790,6 +793,7 @@ clarity-todo/
                                 DE/
                                 NW/
                                 HN/
+                                GJ/
                                 HG/
                                 N2/
                                 GC/
@@ -981,6 +985,7 @@ clarity-todo/
                                 8Y/
                                 85/
                                 1D/
+                                71/
                                 QC/
                                 WZ/
                                 W6/
@@ -998,6 +1003,7 @@ clarity-todo/
                                 W1/
                                 QD/
                                 40/
+                                2E/
                                 XP/
                                 QM/
                                 WT/
@@ -1007,6 +1013,7 @@ clarity-todo/
                                 WS/
                                 XW/
                                 2B/
+                                47/
                                 RE/
                                 T0/
                                 8P/
@@ -1056,7 +1063,6 @@ clarity-todo/
         Views/
             ContentView.swift
             Sidebar/
-                SidebarView.swift
             Detail/
                 DetailView.swift
             MainList/
@@ -1112,8 +1118,8 @@ struct ClarityTodoApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(appState)
-                .modelContainer(for: [TodoItem.self, SubtaskItem.self])
-                .frame(minWidth: 960, minHeight: 640)
+                .modelContainer(sharedModelContainer)
+                .frame(minWidth: 780, minHeight: 500)
                 .preferredColorScheme(appState.colorScheme)
         }
         .windowStyle(.titleBar)
@@ -1121,17 +1127,17 @@ struct ClarityTodoApp: App {
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("新建待办") {
-                    appState.createNewTodo()
+                    NotificationCenter.default.post(name: .focusNewTodoCommand, object: nil)
                 }
                 .keyboardShortcut("n", modifiers: .command)
             }
             CommandGroup(replacing: .undoRedo) {
                 Button("撤销") {
-                    appState.undo()
+                    NSApp.sendAction(#selector(UndoManager.undo), to: nil, from: nil)
                 }
                 .keyboardShortcut("z", modifiers: .command)
                 Button("重做") {
-                    appState.redo()
+                    NSApp.sendAction(#selector(UndoManager.redo), to: nil, from: nil)
                 }
                 .keyboardShortcut("z", modifiers: [.command, .shift])
             }
@@ -1153,64 +1159,58 @@ struct ClarityTodoApp: App {
     }
 }
 
+class AppState: ObservableObject {
+    @Published var colorScheme: ColorScheme? = nil
+    @Published var selectedDate: Date = Date()
+    @Published var selectedTodo: TodoItem? = nil
+    @Published var isCalendarPopover: Bool = false
+
+    var isTodaySelected: Bool {
+        Calendar.current.isDateInToday(selectedDate)
+    }
+
+    var headerTitle: String {
+        if isTodaySelected { return "今天" }
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_CN")
+        f.dateFormat = "M月d日"
+        return f.string(from: selectedDate)
+    }
+
+    var headerSubtitle: String {
+        if isTodaySelected {
+            let f = DateFormatter()
+            f.locale = Locale(identifier: "zh_CN")
+            f.dateFormat = "yyyy年M月d日 EEEE"
+            return f.string(from: Date())
+        }
+        return ""
+    }
+}
+
+/// 共享 ModelContainer，支持自动迁移
+let sharedModelContainer: ModelContainer = {
+    let schema = Schema([TodoItem.self, SubtaskItem.self])
+    let config = ModelConfiguration(
+        schema: schema,
+        isStoredInMemoryOnly: false,
+        allowsSave: true
+    )
+    do {
+        return try ModelContainer(for: schema, configurations: config)
+    } catch {
+        // 如果 schema 不兼容，删掉旧的重新创建
+        try? FileManager.default.removeItem(at: config.url)
+        return try! ModelContainer(for: schema, configurations: config)
+    }
+}()
+
 extension Notification.Name {
     static let boldCommand = Notification.Name("boldCommand")
     static let italicCommand = Notification.Name("italicCommand")
     static let underlineCommand = Notification.Name("underlineCommand")
     static let deleteTodoCommand = Notification.Name("deleteTodoCommand")
-}
-
-class AppState: ObservableObject {
-    @Published var colorScheme: ColorScheme? = nil
-    @Published var selectedSidebarItem: SidebarItem = .today
-    @Published var selectedTodo: TodoItem? = nil
-    @Published var filterDate: Date? = nil
-    @Published var searchText: String = ""
-    @Published var isCalendarOpen: Bool = false
-
-    func createNewTodo() {
-        let context = ModelContext(
-            try! ModelContainer(for: TodoItem.self, SubtaskItem.self)
-        )
-        let newTodo = TodoItem(
-            title: "",
-            dueDate: filterDate,
-            isCompleted: false
-        )
-        context.insert(newTodo)
-        selectedTodo = newTodo
-    }
-
-    func undo() {
-        NotificationCenter.default.post(name: .undoCommand, object: nil)
-    }
-
-    func redo() {
-        NotificationCenter.default.post(name: .redoCommand, object: nil)
-    }
-}
-
-extension Notification.Name {
-    static let undoCommand = Notification.Name("undoCommand")
-    static let redoCommand = Notification.Name("redoCommand")
-}
-
-enum SidebarItem: String, CaseIterable, Identifiable {
-    case today = "今天"
-    case upcoming = "接下来"
-    case calendar = "日历"
-    case completed = "已完成"
-
-    var id: String { rawValue }
-
-    var icon: String {
-        switch self {
-        case .today: return "sun.max.fill"
-        case .upcoming: return "calendar.badge.clock"
-        case .calendar: return "calendar"
-        case .completed: return "checkmark.circle.fill"
-        }
-    }
+    static let focusNewTodoCommand = Notification.Name("focusNewTodoCommand")
 }
 
 ```
@@ -1227,20 +1227,12 @@ import Combine
 class TodoViewModel: ObservableObject {
     @Published var todos: [TodoItem] = []
     @Published var selectedTodo: TodoItem? = nil
-    @Published var searchText: String = ""
-    @Published var filterCompleted: Bool = false
     @Published var isLoading: Bool = false
 
     private var modelContext: ModelContext?
     private var cancellables = Set<AnyCancellable>()
 
-    init() {
-        NotificationCenter.default.publisher(for: .newTodoCommand)
-            .sink { [weak self] _ in
-                self?.createNewTodo()
-            }
-            .store(in: &cancellables)
-    }
+    init() {}
 
     func setup(with context: ModelContext) {
         self.modelContext = context
@@ -1256,22 +1248,34 @@ class TodoViewModel: ObservableObject {
         do {
             todos = try context.fetch(descriptor)
         } catch {
-            print("Failed to load todos: \(error)")
+            print("加载待办失败: \(error)")
         }
         isLoading = false
     }
 
-    func createNewTodo(date: Date? = nil) {
-        guard let context = modelContext else { return }
+    /// 获取指定日期的待办（含已完成的）
+    func todosForDate(_ date: Date) -> [TodoItem] {
+        let calendar = Calendar.current
+        return todos.filter { todo in
+            guard let dueDate = todo.dueDate else { return false }
+            return calendar.isDate(dueDate, inSameDayAs: date)
+        }
+    }
+
+    /// 创建待办：直接输入标题 + 指定日期
+    func createTodo(title: String, date: Date) -> TodoItem? {
+        guard let context = modelContext, !title.trimmingCharacters(in: .whitespaces).isEmpty else { return nil }
         let newTodo = TodoItem(
-            title: "",
+            title: title.trimmingCharacters(in: .whitespaces),
             dueDate: date,
-            isCompleted: false
+            isCompleted: false,
+            sortOrder: todos.count
         )
         context.insert(newTodo)
         try? context.save()
         loadTodos()
         selectedTodo = newTodo
+        return newTodo
     }
 
     func saveTodo(_ todo: TodoItem) {
@@ -1297,9 +1301,9 @@ class TodoViewModel: ObservableObject {
     }
 
     func addSubtask(to todo: TodoItem, title: String) {
-        guard let context = modelContext else { return }
+        guard let context = modelContext, !title.trimmingCharacters(in: .whitespaces).isEmpty else { return }
         let subtask = SubtaskItem(
-            title: title,
+            title: title.trimmingCharacters(in: .whitespaces),
             sortOrder: todo.subtasks.count
         )
         todo.subtasks.append(subtask)
@@ -1326,57 +1330,6 @@ class TodoViewModel: ObservableObject {
         try? context.save()
         loadTodos()
     }
-
-    func filteredTodos(for sidebarItem: SidebarItem) -> [TodoItem] {
-        var result = todos
-
-        // Apply search filter
-        if !searchText.isEmpty {
-            result = result.filter { todo in
-                todo.title.localizedCaseInsensitiveContains(searchText) ||
-                todo.plainTextDescription.localizedCaseInsensitiveContains(searchText)
-            }
-        }
-
-        // Apply sidebar filter
-        switch sidebarItem {
-        case .today:
-            let calendar = Calendar.current
-            result = result.filter { todo in
-                guard let dueDate = todo.dueDate else { return false }
-                return calendar.isDateInToday(dueDate) && !todo.isCompleted
-            }
-        case .upcoming:
-            let calendar = Calendar.current
-            let today = calendar.startOfDay(for: Date())
-            result = result.filter { todo in
-                guard let dueDate = todo.dueDate else { return false }
-                return calendar.startOfDay(for: dueDate) >= today && !todo.isCompleted
-            }
-            result.sort { a, b in
-                (a.dueDate ?? .distantFuture) < (b.dueDate ?? .distantFuture)
-            }
-        case .calendar:
-            // Filter is handled separately when a date is selected
-            break
-        case .completed:
-            result = result.filter { $0.isCompleted }
-        }
-
-        return result
-    }
-
-    func todosForDate(_ date: Date) -> [TodoItem] {
-        let calendar = Calendar.current
-        return todos.filter { todo in
-            guard let dueDate = todo.dueDate else { return false }
-            return calendar.isDate(dueDate, inSameDayAs: date)
-        }
-    }
-}
-
-extension Notification.Name {
-    static let newTodoCommand = Notification.Name("newTodoCommand")
 }
 
 ```
@@ -1399,6 +1352,7 @@ final class TodoItem {
     var dueDate: Date?
     var isCompleted: Bool
     var colorTag: String
+    var titleFontSize: Double
     @Relationship(deleteRule: .cascade) var subtasks: [SubtaskItem] = []
     var sortOrder: Int
 
@@ -1412,6 +1366,7 @@ final class TodoItem {
         dueDate: Date? = nil,
         isCompleted: Bool = false,
         colorTag: String = "blue",
+        titleFontSize: Double = 17.0,
         subtasks: [SubtaskItem] = [],
         sortOrder: Int = 0
     ) {
@@ -1424,6 +1379,7 @@ final class TodoItem {
         self.dueDate = dueDate
         self.isCompleted = isCompleted
         self.colorTag = colorTag
+        self.titleFontSize = titleFontSize
         self.subtasks = subtasks
         self.sortOrder = sortOrder
     }
@@ -1528,142 +1484,16 @@ struct ContentView: View {
     @Query(sort: \TodoItem.sortOrder) private var todos: [TodoItem]
 
     var body: some View {
-        NavigationSplitView {
-            SidebarView()
-                .environmentObject(appState)
-                .environmentObject(viewModel)
-        } content: {
-            MainListView()
-                .environmentObject(appState)
-                .environmentObject(viewModel)
-        } detail: {
-            DetailView()
-                .environmentObject(appState)
-                .environmentObject(viewModel)
-        }
-        .navigationSplitViewStyle(.balanced)
-        .onAppear {
-            viewModel.setup(with: modelContext)
-        }
-        .onChange(of: todos) { _, newTodos in
-            viewModel.todos = newTodos
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .deleteTodoCommand)) { _ in
-            if let todo = appState.selectedTodo {
-                viewModel.deleteTodo(todo)
+        MainListView()
+            .environmentObject(appState)
+            .environmentObject(viewModel)
+            .frame(minWidth: 500, minHeight: 400)
+            .onAppear {
+                viewModel.setup(with: modelContext)
             }
-        }
-    }
-}
-
-```
-
----
-
-### 文件位置: `ClarityTodo/Views/Sidebar/SidebarView.swift`
-```swift
-import SwiftUI
-
-struct SidebarView: View {
-    @EnvironmentObject var appState: AppState
-    @EnvironmentObject var viewModel: TodoViewModel
-
-    var body: some View {
-        VStack(spacing: 0) {
-            // 应用图标和标题
-            HStack {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(.blue.gradient)
-                Text("Clarity")
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                Spacer()
+            .onChange(of: todos) { _, newTodos in
+                viewModel.todos = newTodos
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-
-            Divider()
-
-            // 搜索框
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
-                    .font(.caption)
-                TextField("搜索待办...", text: $appState.searchText)
-                    .textFieldStyle(.plain)
-                    .font(.body)
-            }
-            .padding(8)
-            .background(.quaternary.opacity(0.3))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-
-            // 侧边栏列表
-            List(selection: $appState.selectedSidebarItem) {
-                ForEach(SidebarItem.allCases) { item in
-                    SidebarRow(item: item, count: countForItem(item))
-                        .tag(item)
-                        .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
-                }
-            }
-            .listStyle(.sidebar)
-            .scrollContentBackground(.hidden)
-            .background(.clear)
-        }
-        .frame(minWidth: 200)
-        .background(
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .ignoresSafeArea()
-        )
-    }
-
-    private func countForItem(_ item: SidebarItem) -> Int {
-        return viewModel.filteredTodos(for: item).count
-    }
-}
-
-struct SidebarRow: View {
-    let item: SidebarItem
-    let count: Int
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: item.icon)
-                .font(.system(size: 14))
-                .foregroundStyle(iconColor)
-                .frame(width: 20)
-
-            Text(item.rawValue)
-                .font(.body)
-                .fontWeight(.medium)
-
-            Spacer()
-
-            if count > 0 {
-                Text("\(count)")
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(.quaternary.opacity(0.6))
-                    .clipShape(Capsule())
-            }
-        }
-        .contentShape(Rectangle())
-        .padding(.vertical, 4)
-    }
-
-    private var iconColor: AnyGradient {
-        switch item {
-        case .today: return Color.blue.gradient
-        case .upcoming: return Color.orange.gradient
-        case .calendar: return Color.purple.gradient
-        case .completed: return Color.green.gradient
-        }
     }
 }
 
@@ -1688,19 +1518,18 @@ struct DetailView: View {
                 DetailEmptyState()
             }
         }
-        .frame(minWidth: 300)
+        .frame(minWidth: 280)
     }
 }
 
 struct DetailEmptyState: View {
     var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "square.and.pencil")
-                .font(.system(size: 36))
-                .foregroundStyle(.quaternary)
-            Text("选择一个待办来编辑")
+        VStack(spacing: 8) {
+            Spacer()
+            Text("选择一条待办查看详情")
                 .font(.body)
                 .foregroundStyle(.tertiary)
+            Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(nsColor: .controlBackgroundColor))
@@ -1721,10 +1550,10 @@ struct TodoDetailContent: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 12) {
                 // 标题
                 TextField("待办标题", text: $title)
-                    .font(.title2)
+                    .font(.title3)
                     .fontWeight(.semibold)
                     .textFieldStyle(.plain)
                     .onSubmit {
@@ -1733,27 +1562,23 @@ struct TodoDetailContent: View {
                     }
 
                 // 元数据行
-                HStack(spacing: 12) {
-                    // 截止日期开关
+                HStack(spacing: 10) {
+                    // 日期
                     Button(action: {
                         hasDueDate.toggle()
-                        if hasDueDate {
-                            todo.dueDate = dueDate
-                        } else {
-                            todo.dueDate = nil
-                        }
+                        todo.dueDate = hasDueDate ? dueDate : nil
                         viewModel.saveTodo(todo)
                     }) {
                         HStack(spacing: 4) {
                             Image(systemName: hasDueDate ? "calendar.circle.fill" : "calendar.circle")
-                            Text(hasDueDate ? "截止 \(formatDate(dueDate))" : "添加截止日期")
+                            Text(hasDueDate ? formatDate(dueDate) : "添加日期")
                                 .font(.caption)
                         }
                         .foregroundStyle(hasDueDate ? .blue : .secondary)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
                         .background(.quaternary.opacity(0.3))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
                     }
                     .buttonStyle(.plain)
 
@@ -1761,28 +1586,18 @@ struct TodoDetailContent: View {
                         DatePicker("", selection: $dueDate, displayedComponents: .date)
                             .datePickerStyle(.compact)
                             .labelsHidden()
+                            .scaleEffect(0.85)
                             .onChange(of: dueDate) { _, newDate in
                                 todo.dueDate = newDate
                                 viewModel.saveTodo(todo)
                             }
                     }
 
-                    Spacer()
-
-                    // 颜色选择
+                    // 颜色
                     Button(action: { showColorPicker.toggle() }) {
-                        HStack(spacing: 4) {
-                            Circle()
-                                .fill(colorFromTag(selectedColor))
-                                .frame(width: 10, height: 10)
-                            Text("颜色")
-                                .font(.caption)
-                        }
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(.quaternary.opacity(0.3))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        Circle()
+                            .fill(colorFromTag(selectedColor))
+                            .frame(width: 14, height: 14)
                     }
                     .buttonStyle(.plain)
                     .popover(isPresented: $showColorPicker) {
@@ -1792,26 +1607,36 @@ struct TodoDetailContent: View {
                         }
                         .padding(8)
                     }
+
+                    Spacer()
+
+                    // 删除
+                    Button(action: { showDeleteAlert = true }) {
+                        Image(systemName: "trash")
+                            .font(.caption)
+                            .foregroundStyle(.red.opacity(0.7))
+                    }
+                    .buttonStyle(.plain)
+                    .help("删除待办")
                 }
 
                 Divider()
 
-                // 子任务列表
+                // 子任务
                 VStack(alignment: .leading, spacing: 4) {
                     Text("子任务")
                         .font(.caption)
-                        .fontWeight(.semibold)
                         .foregroundStyle(.secondary)
 
                     ForEach(todo.subtasks.sorted(by: { $0.sortOrder < $1.sortOrder })) { subtask in
-                        SubtaskRow(subtask: subtask)
+                        SubtaskRow(subtask: subtask, parentTodo: todo)
                     }
 
-                    Button(action: { addSubtask() }) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "plus.circle")
+                    Button(action: { viewModel.addSubtask(to: todo, title: "新子任务") }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "plus")
                                 .font(.caption)
-                            Text("添加子任务")
+                            Text("添加")
                                 .font(.caption)
                         }
                         .foregroundStyle(.blue)
@@ -1819,60 +1644,41 @@ struct TodoDetailContent: View {
                     .buttonStyle(.plain)
                 }
 
+                Divider()
+
                 // 富文本描述
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("详细描述")
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("描述")
                         .font(.caption)
-                        .fontWeight(.semibold)
                         .foregroundStyle(.secondary)
 
                     RichTextEditor(attributedString: $attributedDescription)
-                        .frame(minHeight: 120, maxHeight: 300)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .frame(minHeight: 100, maxHeight: 250)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 8)
+                            RoundedRectangle(cornerRadius: 6)
                                 .stroke(Color.primary.opacity(0.1), lineWidth: 0.5)
                         )
                 }
-
-                // 删除按钮
-                Button(action: { showDeleteAlert = true }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "trash")
-                        Text("删除待办")
-                    }
-                    .font(.body)
-                    .foregroundStyle(.red)
-                    .padding(.vertical, 8)
-                    .padding(.horizontal, 16)
-                    .background(.red.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
-                .buttonStyle(.plain)
             }
-            .padding(20)
+            .padding(16)
         }
         .background(Color(nsColor: .controlBackgroundColor))
-        .onAppear {
-            loadTodoData()
-        }
-        .onChange(of: todo) { _, _ in
-            loadTodoData()
-        }
+        .onAppear { loadData() }
+        .onChange(of: todo) { _, _ in loadData() }
         .onChange(of: attributedDescription) { _, newValue in
-            saveRichText(newValue)
+            DataService.shared.saveRichText(newValue, to: todo)
+            viewModel.saveTodo(todo)
         }
         .alert("删除待办", isPresented: $showDeleteAlert) {
             Button("取消", role: .cancel) {}
-            Button("删除", role: .destructive) {
-                viewModel.deleteTodo(todo)
-            }
+            Button("删除", role: .destructive) { viewModel.deleteTodo(todo) }
         } message: {
             Text("确定要删除「\(todo.title)」吗？")
         }
     }
 
-    private func loadTodoData() {
+    private func loadData() {
         title = todo.title
         hasDueDate = todo.dueDate != nil
         dueDate = todo.dueDate ?? Date()
@@ -1880,32 +1686,19 @@ struct TodoDetailContent: View {
         attributedDescription = DataService.shared.loadRichText(from: todo)
     }
 
-    private func saveRichText(_ attrString: NSAttributedString) {
-        DataService.shared.saveRichText(attrString, to: todo)
-        viewModel.saveTodo(todo)
-    }
-
-    private func addSubtask() {
-        viewModel.addSubtask(to: todo, title: "新子任务")
-    }
-
     private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
-        formatter.dateFormat = "M月d日"
-        return formatter.string(from: date)
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_CN")
+        f.dateFormat = "M月d日"
+        return f.string(from: date)
     }
 
     private func colorFromTag(_ tag: String) -> Color {
         switch tag {
-        case "red": return .red
-        case "orange": return .orange
-        case "yellow": return .yellow
-        case "green": return .green
-        case "blue": return .blue
-        case "purple": return .purple
-        case "pink": return .pink
-        default: return .blue
+        case "red": return .red; case "orange": return .orange
+        case "yellow": return .yellow; case "green": return .green
+        case "blue": return .blue; case "purple": return .purple
+        case "pink": return .pink; default: return .blue
         }
     }
 }
@@ -1914,20 +1707,15 @@ struct SubtaskRow: View {
     @EnvironmentObject var viewModel: TodoViewModel
     @State private var title: String = ""
     let subtask: SubtaskItem
+    let parentTodo: TodoItem
 
     var body: some View {
-        HStack(spacing: 8) {
-            // 完成勾选框
-            Button(action: {
-                viewModel.toggleSubtaskCompletion(subtask)
-            }) {
-                Image(systemName: subtask.isCompleted ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(subtask.isCompleted ? .green : .secondary)
-                    .font(.system(size: 14))
-            }
-            .buttonStyle(.plain)
+        HStack(spacing: 6) {
+            Image(systemName: subtask.isCompleted ? "checkmark.circle.fill" : "circle")
+                .foregroundStyle(subtask.isCompleted ? .green : .secondary)
+                .font(.system(size: 12))
+                .onTapGesture { viewModel.toggleSubtaskCompletion(subtask) }
 
-            // 标题
             TextField("子任务", text: $title)
                 .textFieldStyle(.plain)
                 .font(.callout)
@@ -1935,24 +1723,17 @@ struct SubtaskRow: View {
                 .foregroundStyle(subtask.isCompleted ? .secondary : .primary)
                 .onSubmit {
                     subtask.title = title
-                    subtask.updateTimestamp()
                     viewModel.loadTodos()
                 }
 
-            Spacer()
-
-            // 删除
             Button(action: { viewModel.deleteSubtask(subtask) }) {
                 Image(systemName: "xmark.circle.fill")
                     .font(.caption)
-                    .foregroundStyle(.secondary.opacity(0.5))
+                    .foregroundStyle(.secondary.opacity(0.4))
             }
             .buttonStyle(.plain)
         }
-        .padding(.leading, 4)
-        .onAppear {
-            title = subtask.title
-        }
+        .onAppear { title = subtask.title }
     }
 }
 
@@ -1961,11 +1742,11 @@ struct ColorPickerView: View {
     let onSelect: (String) -> Void
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             ForEach(colorTags, id: \.name) { tag in
                 Circle()
                     .fill(colorFromTag(tag.color))
-                    .frame(width: 24, height: 24)
+                    .frame(width: 20, height: 20)
                     .overlay(
                         Circle()
                             .stroke(tag.color == selectedColor ? Color.primary : Color.clear, lineWidth: 2)
@@ -1980,14 +1761,10 @@ struct ColorPickerView: View {
 
     private func colorFromTag(_ tag: String) -> Color {
         switch tag {
-        case "red": return .red
-        case "orange": return .orange
-        case "yellow": return .yellow
-        case "green": return .green
-        case "blue": return .blue
-        case "purple": return .purple
-        case "pink": return .pink
-        default: return .blue
+        case "red": return .red; case "orange": return .orange
+        case "yellow": return .yellow; case "green": return .green
+        case "blue": return .blue; case "purple": return .purple
+        case "pink": return .pink; default: return .blue
         }
     }
 }
@@ -2003,133 +1780,173 @@ import SwiftUI
 struct MainListView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var viewModel: TodoViewModel
+    @State private var newTodoText: String = ""
     @State private var showDeleteAlert = false
     @State private var todoToDelete: TodoItem? = nil
+    @State private var showCalendarPopover = false
+    @FocusState private var newTodoFocused: Bool
 
-    var displayedTodos: [TodoItem] {
-        // 日历模式下显示选中日期的待办
-        if appState.selectedSidebarItem == .calendar, let date = appState.filterDate {
-            return viewModel.todosForDate(date)
-        }
-        return viewModel.filteredTodos(for: appState.selectedSidebarItem)
+    private var dateTodos: [TodoItem] {
+        viewModel.todosForDate(appState.selectedDate)
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            // 顶部标题
-            HStack {
-                Text(appState.selectedSidebarItem == .calendar && appState.filterDate != nil
-                     ? formatDate(appState.filterDate!)
-                     : appState.selectedSidebarItem.rawValue)
-                    .font(.title2)
-                    .fontWeight(.semibold)
-
-                Spacer()
-
-                Button(action: { appState.isCalendarOpen.toggle() }) {
-                    Image(systemName: appState.isCalendarOpen ? "calendar.badge.checkmark" : "calendar")
-                        .font(.body)
-                }
-                .buttonStyle(.plain)
-                .help("切换日历")
-
-                Button(action: {
-                    viewModel.createNewTodo(date: appState.filterDate)
-                }) {
-                    Image(systemName: "plus")
-                        .font(.body)
-                        .fontWeight(.semibold)
-                }
-                .buttonStyle(.plain)
-                .help("新建待办 (Command+N)")
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-
-            // 日历（点击后展开）
-            if appState.isCalendarOpen {
-                CalendarView()
-                    .environmentObject(appState)
-                    .environmentObject(viewModel)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-            }
+            // ── 头部（居中）──
+            headerView
+                .padding(.horizontal, 24)
+                .padding(.top, 24)
+                .padding(.bottom, 10)
 
             Divider()
+                .padding(.horizontal, 20)
 
-            // 待办列表
-            if displayedTodos.isEmpty {
-                EmptyStateView()
+            // ── 待办列表 ──
+            if dateTodos.isEmpty {
+                emptyState
             } else {
-                List(selection: $appState.selectedTodo) {
-                    ForEach(displayedTodos) { todo in
-                        TodoCardView(todo: todo)
-                            .tag(todo)
-                            .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
-                            .contextMenu {
-                                Button(todo.isCompleted ? "标记为未完成" : "标记为已完成") {
-                                    viewModel.toggleTodoCompletion(todo)
-                                }
-                                Divider()
-                                Button("复制标题") {
-                                    NSPasteboard.general.clearContents()
-                                    NSPasteboard.general.setString(todo.title, forType: .string)
-                                }
-                                Button("删除", role: .destructive) {
-                                    todoToDelete = todo
-                                    showDeleteAlert = true
-                                }
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: 6) {
+                            ForEach(Array(dateTodos.enumerated()), id: \.element.id) { index, todo in
+                                TodoCardView(index: index + 1, todo: todo)
+                                    .environmentObject(viewModel)
+                                    .environmentObject(appState)
+                                    .id(todo.id)
                             }
-                    }
-                    .onDeleteCommand {
-                        if let selected = appState.selectedTodo {
-                            todoToDelete = selected
-                            showDeleteAlert = true
                         }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 12)
+                        .padding(.bottom, 8)
                     }
+                    .scrollContentBackground(.hidden)
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
             }
+
+            Spacer(minLength: 0)
+
+            // ── 底部添加输入框 ──
+            addTodoBar
         }
-        .frame(minWidth: 320)
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(
+            LinearGradient(
+                colors: [
+                    Color(nsColor: .windowBackgroundColor),
+                    Color(nsColor: .controlBackgroundColor)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+        )
         .alert("删除待办", isPresented: $showDeleteAlert) {
             Button("取消", role: .cancel) {}
             Button("删除", role: .destructive) {
-                if let todo = todoToDelete {
-                    viewModel.deleteTodo(todo)
-                }
+                if let todo = todoToDelete { viewModel.deleteTodo(todo) }
             }
         } message: {
-            Text("确定要删除「\(todoToDelete?.title ?? "")」吗？此操作不可撤销。")
+            Text("确定要删除「\(todoToDelete?.title ?? "")」吗？")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .focusNewTodoCommand)) { _ in
+            newTodoFocused = true
         }
     }
 
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
-        formatter.dateFormat = "M月d日 EEEE"
-        return formatter.string(from: date)
-    }
-}
+    // MARK: - 头部（居中）
+    private var headerView: some View {
+        HStack {
+            Spacer()
 
-struct EmptyStateView: View {
-    var body: some View {
-        VStack(spacing: 16) {
+            VStack(alignment: .center, spacing: 4) {
+                Text(appState.headerTitle)
+                    .font(.system(size: 32, weight: .bold))
+                    .foregroundStyle(.primary)
+                if !appState.headerSubtitle.isEmpty {
+                    Text(appState.headerSubtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer()
+
+            Button(action: { showCalendarPopover.toggle() }) {
+                Image(systemName: "calendar")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .padding(8)
+                    .background(.quaternary.opacity(0.3))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain)
+            .popover(isPresented: $showCalendarPopover, arrowEdge: .top) {
+                CompactCalendarView(selectedDate: $appState.selectedDate, isPresented: $showCalendarPopover)
+                    .environmentObject(viewModel)
+            }
+        }
+    }
+
+    // MARK: - 空状态
+    private var emptyState: some View {
+        VStack(spacing: 20) {
             Spacer()
             Image(systemName: "checkmark.circle")
-                .font(.system(size: 48))
+                .font(.system(size: 52))
                 .foregroundStyle(.quaternary)
-            Text("还没有待办")
+            Text("今天还没有待办")
                 .font(.title3)
                 .fontWeight(.medium)
                 .foregroundStyle(.secondary)
-            Text("点击 + 按钮或按 Command+N\n 创建你的第一个待办")
-                .font(.callout)
+            Text("在下方输入框添加今天要做的事")
+                .font(.subheadline)
                 .foregroundStyle(.tertiary)
-                .multilineTextAlignment(.center)
             Spacer()
         }
+    }
+
+    // MARK: - 添加待办栏
+    private var addTodoBar: some View {
+        VStack(spacing: 0) {
+            Divider()
+            HStack(spacing: 12) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.blue)
+
+                TextField("输入新的待办事项…", text: $newTodoText)
+                    .textFieldStyle(.plain)
+                    .font(.body)
+                    .focused($newTodoFocused)
+                    .onSubmit { addNewTodo() }
+
+                Button(action: addNewTodo) {
+                    Text("添加")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 7)
+                        .background(
+                            newTodoText.trimmingCharacters(in: .whitespaces).isEmpty
+                                ? Color.blue.opacity(0.3)
+                                : Color.blue
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .disabled(newTodoText.trimmingCharacters(in: .whitespaces).isEmpty)
+                .animation(.easeOut(duration: 0.15), value: newTodoText.isEmpty)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 14)
+            .background(.ultraThinMaterial)
+        }
+    }
+
+    private func addNewTodo() {
+        guard let _ = viewModel.createTodo(title: newTodoText, date: appState.selectedDate) else { return }
+        newTodoText = ""
+        newTodoFocused = true
     }
 }
 
@@ -2140,109 +1957,336 @@ struct EmptyStateView: View {
 ### 文件位置: `ClarityTodo/Views/MainList/TodoCardView.swift`
 ```swift
 import SwiftUI
+import AppKit
 
+/// 阿拉伯数字转中文数字
+private func chineseNumber(_ n: Int) -> String {
+    let map = ["零","一","二","三","四","五","六","七","八","九","十",
+               "十一","十二","十三","十四","十五","十六","十七","十八","十九","二十"]
+    return n <= 20 ? map[n] : "\(n)"
+}
+
+// MARK: - 待办卡片
 struct TodoCardView: View {
+    let index: Int
     let todo: TodoItem
     @EnvironmentObject var viewModel: TodoViewModel
 
+    @State private var showSubtaskInput = false
+    @State private var subtaskText = ""
+    @State private var showDeleteAlert = false
+    @State private var isEditingTitle = false
+    @State private var editTitle: String = ""
+    @State private var showFontPanel = false
+
+    private let iconSize: CGFloat = 18
+    private let hitWidth: CGFloat = 34
+    private let hitHeight: CGFloat = 30
+
     var body: some View {
-        HStack(spacing: 10) {
-            // 完成状态勾选框
-            Button(action: { viewModel.toggleTodoCompletion(todo) }) {
-                Circle()
-                    .strokeBorder(todo.isCompleted ? Color.green : colorFromTag(todo.colorTag), lineWidth: 1.5)
-                    .frame(width: 18, height: 18)
-                    .overlay {
-                        if todo.isCompleted {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundStyle(.green)
-                        }
-                    }
-            }
-            .buttonStyle(.plain)
+        VStack(spacing: 0) {
+            // ── 主行 ──
+            HStack(spacing: 10) {
+                // 中文序号（固定宽度对齐）
+                Text("\(chineseNumber(index))、")
+                    .font(.system(size: CGFloat(todo.titleFontSize - 2), weight: .regular))
+                    .foregroundStyle(.tertiary)
+                    .frame(width: 34, alignment: .trailing)
 
-            VStack(alignment: .leading, spacing: 4) {
                 // 标题
-                Text(todo.title.isEmpty ? "新待办" : todo.title)
-                    .font(.body)
-                    .fontWeight(.medium)
-                    .lineLimit(1)
-                    .strikethrough(todo.isCompleted)
-                    .foregroundStyle(todo.isCompleted ? .secondary : .primary)
-
-                // 子任务进度
-                if !todo.subtasks.isEmpty {
-                    HStack(spacing: 4) {
-                        let completed = todo.subtasks.filter { $0.isCompleted }.count
-                        Text("\(completed)/\(todo.subtasks.count)")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                    }
+                if isEditingTitle {
+                    editingTitleView
+                } else {
+                    displayTitleView
                 }
 
-                // 截止日期
-                if let dueDate = todo.dueDate {
-                    HStack(spacing: 4) {
-                        Image(systemName: "calendar")
-                            .font(.caption2)
-                        Text(formatDueDate(dueDate))
-                            .font(.caption2)
+                Spacer(minLength: 8)
+
+                if !isEditingTitle {
+                    // 字体按钮
+                    Button(action: { showFontPanel.toggle() }) {
+                        Image(systemName: "textformat")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.secondary)
+                            .frame(minWidth: 28, minHeight: 28)
+                            .contentShape(Rectangle())
                     }
-                    .foregroundStyle(isDueDatePast(dueDate) && !todo.isCompleted ? .red : .secondary)
+                    .buttonStyle(.plain)
+                    .popover(isPresented: $showFontPanel, arrowEdge: .top) {
+                        FontSettingsPanel(
+                            fontSize: Binding(
+                                get: { CGFloat(todo.titleFontSize) },
+                                set: { todo.titleFontSize = Double($0); viewModel.saveTodo(todo) }
+                            )
+                        )
+                        .padding(14)
+                        .frame(width: 200)
+                    }
+
+                    // ── 右侧操作图标 ──
+                    HStack(spacing: 0) {
+                        bigIcon("plus")
+                            .onTapGesture { showSubtaskInput.toggle() }
+                        bigIcon("checkmark")
+                            .foregroundStyle(todo.isCompleted ? .green : .secondary)
+                            .onTapGesture { viewModel.toggleTodoCompletion(todo) }
+                        bigIcon("xmark")
+                            .onTapGesture { showDeleteAlert = true }
+                    }
                 }
             }
+            .padding(.vertical, 14)
+            .padding(.horizontal, 16)
 
-            Spacer()
+            // ── 子待办列表（1. 2. 对齐在一个层级）──
+            if !todo.subtasks.isEmpty {
+                VStack(spacing: 0) {
+                    ForEach(
+                        Array(todo.subtasks.sorted(by: { $0.sortOrder < $1.sortOrder }).enumerated()),
+                        id: \.element.id
+                    ) { subIdx, subtask in
+                        SubtaskLineView(
+                            subtaskIndex: subIdx + 1,
+                            subtask: subtask,
+                            parentTodo: todo
+                        )
+                        .environmentObject(viewModel)
+                    }
+                }
+                .padding(.bottom, 6)
+            }
 
-            // 颜色标签
-            Circle()
-                .fill(colorFromTag(todo.colorTag))
-                .frame(width: 8, height: 8)
+            // ── 子待办输入框 ──
+            if showSubtaskInput {
+                subtaskInputView
+            }
         }
-        .padding(10)
         .background(
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color(nsColor: .controlBackgroundColor))
-                .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+                .shadow(color: .black.opacity(0.06), radius: 3, x: 0, y: 1)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
         )
-    }
-
-    private func colorFromTag(_ tag: String) -> Color {
-        switch tag {
-        case "red": return .red
-        case "orange": return .orange
-        case "yellow": return .yellow
-        case "green": return .green
-        case "blue": return .blue
-        case "purple": return .purple
-        case "pink": return .pink
-        default: return .blue
+        .alert("删除待办", isPresented: $showDeleteAlert) {
+            Button("取消", role: .cancel) {}
+            Button("删除", role: .destructive) { viewModel.deleteTodo(todo) }
+        } message: {
+            Text("确定要删除「\(todo.title)」吗？")
         }
     }
 
-    private func formatDueDate(_ date: Date) -> String {
-        let calendar = Calendar.current
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
-        if calendar.isDateInToday(date) {
-            return "今天"
-        } else if calendar.isDateInTomorrow(date) {
-            return "明天"
-        } else if calendar.isDateInYesterday(date) {
-            return "昨天"
-        } else {
-            formatter.dateFormat = "M月d日"
-            return formatter.string(from: date)
+    // MARK: - 显示标题
+    private var displayTitleView: some View {
+        Text(todo.title.isEmpty ? "新待办" : todo.title)
+            .font(.system(size: CGFloat(todo.titleFontSize), weight: .medium))
+            .lineLimit(3)
+            .strikethrough(todo.isCompleted, color: Color.secondary.opacity(0.5))
+            .foregroundStyle(todo.isCompleted ? Color.secondary.opacity(0.65) : .primary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .onTapGesture(count: 2) {
+                editTitle = todo.title
+                isEditingTitle = true
+            }
+    }
+
+    // MARK: - 编辑标题
+    private var editingTitleView: some View {
+        HStack(spacing: 6) {
+            TextField("待办标题", text: $editTitle, onCommit: commitTitle)
+                .textFieldStyle(.plain)
+                .font(.system(size: CGFloat(todo.titleFontSize), weight: .medium))
+                .onExitCommand { commitTitle() }
+
+            Button(action: commitTitle) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 15))
+                    .foregroundStyle(.green)
+            }
+            .buttonStyle(.plain)
         }
     }
 
-    private func isDueDatePast(_ date: Date) -> Bool {
-        return date < Calendar.current.startOfDay(for: Date())
+    // MARK: - 子待办输入
+    private var subtaskInputView: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "plus.circle.fill")
+                .font(.system(size: 11))
+                .foregroundStyle(.blue)
+            TextField("输入子待办…", text: $subtaskText)
+                .textFieldStyle(.plain)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .onSubmit { addSubtask() }
+            Button(action: addSubtask) {
+                Text("添加")
+                    .font(.caption)
+                    .foregroundStyle(.blue)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.leading, 50) // 与子待办序号对齐
+        .padding(.trailing, 14)
+        .padding(.bottom, 10)
+    }
+
+    // MARK: - 大图标
+    private func bigIcon(_ name: String) -> some View {
+        Image(systemName: name)
+            .font(.system(size: iconSize, weight: .regular))
+            .foregroundStyle(.secondary)
+            .frame(minWidth: hitWidth, minHeight: hitHeight)
+            .contentShape(Rectangle())
+    }
+
+    private func addSubtask() {
+        guard !subtaskText.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        viewModel.addSubtask(to: todo, title: subtaskText)
+        subtaskText = ""
+        showSubtaskInput = false
+    }
+
+    private func commitTitle() {
+        guard !editTitle.isEmpty else { isEditingTitle = false; return }
+        todo.title = editTitle
+        viewModel.saveTodo(todo)
+        isEditingTitle = false
+    }
+}
+
+// MARK: - 字体设置面板
+struct FontSettingsPanel: View {
+    @Binding var fontSize: CGFloat
+
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Image(systemName: "textformat")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                Text("字体")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            HStack(spacing: 8) {
+                Button(action: { adjustSize(-1) }) {
+                    Image(systemName: "minus")
+                        .font(.system(size: 10, weight: .bold))
+                        .frame(width: 24, height: 24)
+                        .background(.quaternary.opacity(0.3))
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                }
+                .buttonStyle(.plain)
+
+                Slider(value: $fontSize, in: 10...36, step: 1)
+                    .controlSize(.small)
+
+                Button(action: { adjustSize(1) }) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 10, weight: .bold))
+                        .frame(width: 24, height: 24)
+                        .background(.quaternary.opacity(0.3))
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                }
+                .buttonStyle(.plain)
+            }
+
+            HStack(spacing: 4) {
+                ForEach([12, 14, 16, 18, 20, 24, 28, 32], id: \.self) { size in
+                    Button(action: { fontSize = CGFloat(size) }) {
+                        Text("\(size)")
+                            .font(.system(size: 10))
+                            .foregroundStyle(fontSize == CGFloat(size) ? .white : .primary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 4)
+                            .background(fontSize == CGFloat(size) ? Color.blue : Color.clear)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            VStack(spacing: 2) {
+                Divider()
+                Text("预览")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.tertiary)
+                    .padding(.top, 4)
+                Text("Aa")
+                    .font(.system(size: fontSize, weight: .medium))
+                    .foregroundStyle(.primary)
+                Text("\(Int(fontSize))pt")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+    }
+
+    private func adjustSize(_ delta: Int) {
+        fontSize = max(10, min(36, fontSize + CGFloat(delta)))
+    }
+}
+
+// MARK: - 子待办行（序号：1. 2. 3.）
+struct SubtaskLineView: View {
+    let subtaskIndex: Int
+    let subtask: SubtaskItem
+    let parentTodo: TodoItem
+    @EnvironmentObject var viewModel: TodoViewModel
+    @State private var showDeleteAlert = false
+
+    var body: some View {
+        HStack(spacing: 10) {
+            // 子序号：固定宽度 18，右对齐，与上面主序号列对齐
+            Text("\(subtaskIndex).")
+                .font(.system(size: 14, weight: .regular))
+                .foregroundStyle(.tertiary)
+                .frame(width: 18, alignment: .trailing)
+
+            // 缩进占位（让子待办文本对齐在主待办标题的起始位置）
+            // 主序号 34pt + gap 10pt = 44pt 偏移
+            // 子序号 18pt + gap 4pt = 22pt → 再补 22pt → 总 44pt
+            // 但为了可视化对齐更精确，做透明占位
+            Color.clear
+                .frame(width: 22)
+
+            Text(subtask.title)
+                .font(.system(size: 15))
+                .lineLimit(3)
+                .strikethrough(subtask.isCompleted, color: Color.secondary.opacity(0.5))
+                .foregroundStyle(subtask.isCompleted ? Color.secondary.opacity(0.65) : Color.primary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Spacer(minLength: 8)
+
+            // 子待办操作图标
+            HStack(spacing: 0) {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 16))
+                    .foregroundStyle(subtask.isCompleted ? .green : .secondary)
+                    .frame(minWidth: 34, minHeight: 28)
+                    .contentShape(Rectangle())
+                    .onTapGesture { viewModel.toggleSubtaskCompletion(subtask) }
+
+                Image(systemName: "xmark")
+                    .font(.system(size: 15))
+                    .foregroundStyle(.secondary)
+                    .frame(minWidth: 34, minHeight: 28)
+                    .contentShape(Rectangle())
+                    .onTapGesture { showDeleteAlert = true }
+            }
+        }
+        .padding(.vertical, 5)
+        .padding(.horizontal, 16)
+        .alert("删除子待办", isPresented: $showDeleteAlert) {
+            Button("取消", role: .cancel) {}
+            Button("删除", role: .destructive) { viewModel.deleteSubtask(subtask) }
+        } message: {
+            Text("确定要删除「\(subtask.title)」吗？")
+        }
     }
 }
 
@@ -2254,83 +2298,87 @@ struct TodoCardView: View {
 ```swift
 import SwiftUI
 
-struct CalendarView: View {
-    @EnvironmentObject var appState: AppState
+/// 小巧的日历弹出视图，适合放在 popover 里
+struct CompactCalendarView: View {
+    @Binding var selectedDate: Date
+    @Binding var isPresented: Bool
     @EnvironmentObject var viewModel: TodoViewModel
     @State private var currentMonth: Date = Date()
-    @State private var selectedDate: Date = Date()
 
     private let calendar = Calendar.current
     private let weekDays = ["日", "一", "二", "三", "四", "五", "六"]
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 6) {
             // 月份切换
             HStack {
                 Button(action: { moveMonth(by: -1) }) {
                     Image(systemName: "chevron.left")
-                        .font(.body)
+                        .font(.caption)
                 }
                 .buttonStyle(.plain)
 
                 Spacer()
 
                 Text(monthYearString(from: currentMonth))
-                    .font(.headline)
+                    .font(.subheadline)
                     .fontWeight(.semibold)
 
                 Spacer()
 
                 Button(action: { moveMonth(by: 1) }) {
                     Image(systemName: "chevron.right")
-                        .font(.body)
+                        .font(.caption)
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 4)
 
             // 星期行
             HStack {
                 ForEach(weekDays, id: \.self) { day in
                     Text(day)
-                        .font(.caption2)
-                        .fontWeight(.medium)
+                        .font(.system(size: 10))
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity)
                 }
             }
 
             // 日期网格
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 4) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 2) {
                 ForEach(daysInMonth(), id: \.self) { date in
                     if let date = date {
-                        DayCell(
+                        CompactDayCell(
                             date: date,
                             isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
                             isToday: calendar.isDateInToday(date),
-                            hasTodos: hasTodos(on: date),
-                            todoCount: todoCount(on: date)
+                            hasTodos: hasTodos(on: date)
                         )
                         .onTapGesture {
                             selectedDate = date
-                            appState.filterDate = date
-                            appState.selectedSidebarItem = .calendar
+                            isPresented = false // 选完自动关闭
                         }
                     } else {
                         Color.clear
-                            .frame(height: 32)
+                            .frame(height: 26)
                     }
                 }
             }
+
+            // 快捷跳转今天
+            if !calendar.isDateInToday(selectedDate) {
+                Divider()
+                Button("回到今天") {
+                    selectedDate = Date()
+                    isPresented = false
+                }
+                .font(.caption)
+                .buttonStyle(.plain)
+                .foregroundStyle(.blue)
+            }
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(nsColor: .controlBackgroundColor))
-                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 2)
-        )
-        .padding(.horizontal, 12)
-        .padding(.vertical, 4)
+        .padding(10)
+        .frame(width: 210)
     }
 
     private func moveMonth(by amount: Int) {
@@ -2340,28 +2388,23 @@ struct CalendarView: View {
     }
 
     private func monthYearString(from date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
-        formatter.dateFormat = "yyyy年M月"
-        return formatter.string(from: date)
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_CN")
+        f.dateFormat = "M月"
+        return f.string(from: date)
     }
 
     private func daysInMonth() -> [Date?] {
         guard let monthInterval = calendar.dateInterval(of: .month, for: currentMonth),
-              let monthFirstWeekday = calendar.dateInterval(of: .weekOfMonth, for: monthInterval.start)
+              let monthStart = monthInterval.start as Date?
         else { return [] }
 
-        var days: [Date?] = []
-        let weekdayOffset = calendar.component(.weekday, from: monthInterval.start) - 1
-        // 补齐月初前的空白
-        for _ in 0..<weekdayOffset {
-            days.append(nil)
-        }
+        let weekdayOffset = calendar.component(.weekday, from: monthStart) - 1
+        var days: [Date?] = Array(repeating: nil, count: weekdayOffset)
 
-        // 添加当月所有日期
         let daysInMonth = calendar.range(of: .day, in: .month, for: currentMonth)!.count
         for day in 1...daysInMonth {
-            if let date = calendar.date(byAdding: .day, value: day - 1, to: monthInterval.start) {
+            if let date = calendar.date(byAdding: .day, value: day - 1, to: monthStart) {
                 days.append(date)
             }
         }
@@ -2370,50 +2413,34 @@ struct CalendarView: View {
     }
 
     private func hasTodos(on date: Date) -> Bool {
-        return viewModel.todos.contains { todo in
+        viewModel.todos.contains { todo in
             guard let dueDate = todo.dueDate else { return false }
             return calendar.isDate(dueDate, inSameDayAs: date)
         }
     }
-
-    private func todoCount(on date: Date) -> Int {
-        return viewModel.todos.filter { todo in
-            guard let dueDate = todo.dueDate else { return false }
-            return calendar.isDate(dueDate, inSameDayAs: date)
-        }.count
-    }
 }
 
-struct DayCell: View {
+struct CompactDayCell: View {
     let date: Date
     let isSelected: Bool
     let isToday: Bool
     let hasTodos: Bool
-    let todoCount: Int
 
     var body: some View {
-        VStack(spacing: 2) {
-            Text("\(Calendar.current.component(.day, from: date))")
-                .font(.system(size: 12, weight: isToday ? .bold : .regular))
-                .foregroundStyle(foregroundColor)
-                .frame(width: 28, height: 28)
-                .background(backgroundView)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-
-            if hasTodos {
-                HStack(spacing: 3) {
-                    Circle()
-                        .fill(.blue.opacity(0.5))
-                        .frame(width: 4, height: 4)
-                    if todoCount > 1 {
-                        Text("\(todoCount)")
-                            .font(.system(size: 8))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-        }
-        .frame(height: 36)
+        Text("\(Calendar.current.component(.day, from: date))")
+            .font(.system(size: 12, weight: isToday ? .bold : .regular))
+            .foregroundStyle(foregroundColor)
+            .frame(width: 24, height: 24)
+            .background(backgroundView)
+            .clipShape(RoundedRectangle(cornerRadius: 5))
+            .overlay(
+                hasTodos && !isSelected
+                    ? Circle()
+                        .fill(.blue)
+                        .frame(width: 3, height: 3)
+                        .offset(y: 8)
+                    : nil
+            )
     }
 
     private var foregroundColor: Color {
@@ -2424,13 +2451,9 @@ struct DayCell: View {
 
     private var backgroundView: some View {
         Group {
-            if isSelected {
-                Color.blue
-            } else if isToday {
-                Color.blue.opacity(0.1)
-            } else {
-                Color.clear
-            }
+            if isSelected { Color.blue }
+            else if isToday { Color.blue.opacity(0.1) }
+            else { Color.clear }
         }
     }
 }
