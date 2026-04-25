@@ -2,13 +2,13 @@
 import PackageDescription
 
 let package = Package(
-    name: "ClarityTodo",
+    name: "YesToDo",
     platforms: [
         .macOS(.v14)
     ],
     targets: [
         .executableTarget(
-            name: "ClarityTodo",
+            name: "YesToDo",
             path: "ClarityTodo"
         )
     ]

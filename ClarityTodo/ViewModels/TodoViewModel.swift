@@ -97,6 +97,19 @@ class TodoViewModel: ObservableObject {
         saveSubtask(subtask)
     }
 
+    func updateSubtaskTitle(_ subtask: SubtaskItem, title: String) {
+        guard let context = modelContext else { return }
+
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        subtask.title = trimmed
+        subtask.updateTimestamp()
+
+        try? context.save()
+        loadTodos()
+    }
+
     func deleteSubtask(_ subtask: SubtaskItem) {
         guard let context = modelContext else { return }
         context.delete(subtask)

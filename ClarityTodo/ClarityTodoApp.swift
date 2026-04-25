@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 @main
-struct ClarityTodoApp: App {
+struct YesToDoApp: App {
     @StateObject private var appState = AppState()
 
     var body: some Scene {
@@ -55,6 +55,7 @@ class AppState: ObservableObject {
     @Published var selectedDate: Date = Date()
     @Published var selectedTodo: TodoItem? = nil
     @Published var isCalendarPopover: Bool = false
+    @Published var globalFontSize: CGFloat = 16
 
     var isTodaySelected: Bool {
         Calendar.current.isDateInToday(selectedDate)

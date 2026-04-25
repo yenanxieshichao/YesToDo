@@ -60,7 +60,9 @@ struct MainListView: View {
             .scrollContentBackground(.hidden)
         }
         .onReceive(NotificationCenter.default.publisher(for: .focusNewTodoCommand)) { _ in
-            newTodoFocused = true
+            DispatchQueue.main.async {
+                newTodoFocused = true
+            }
         }
         .onChange(of: appState.selectedDate) { _, _ in
             // 切换日期时取消选中
@@ -87,12 +89,44 @@ struct MainListView: View {
                             .font(.system(size: 11, weight: .bold))
                             .foregroundStyle(.white)
                     }
-                Text("Clarity")
+                Text("Yes To Do")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.tertiary)
             }
 
             Spacer()
+
+            // 全局缩放控件
+            HStack(spacing: 6) {
+                Button(action: {
+                    appState.globalFontSize = max(12, appState.globalFontSize - 1)
+                }) {
+                    Image(systemName: "minus")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 22, height: 22)
+                        .background(.quaternary.opacity(0.2))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                .buttonStyle(.plain)
+
+                Text("\(Int(appState.globalFontSize))")
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 24)
+
+                Button(action: {
+                    appState.globalFontSize = min(32, appState.globalFontSize + 1)
+                }) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 22, height: 22)
+                        .background(.quaternary.opacity(0.2))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                .buttonStyle(.plain)
+            }
 
             // 日期间信息
             VStack(alignment: .trailing, spacing: 0) {
@@ -184,7 +218,7 @@ struct MainListView: View {
     private func addNewTodo() {
         guard let _ = viewModel.createTodo(title: newTodoText, date: appState.selectedDate) else { return }
         newTodoText = ""
-        newTodoFocused = true
+        newTodoFocused = false  // 显式失焦，让待办卡片可被选择/编辑
     }
 
     private func formatDateShort(_ date: Date) -> String {

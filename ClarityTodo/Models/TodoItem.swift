@@ -12,7 +12,6 @@ final class TodoItem {
     var dueDate: Date?
     var isCompleted: Bool
     var colorTag: String
-    var titleFontSize: Double
     @Relationship(deleteRule: .cascade) var subtasks: [SubtaskItem] = []
     var sortOrder: Int
 
@@ -26,7 +25,6 @@ final class TodoItem {
         dueDate: Date? = nil,
         isCompleted: Bool = false,
         colorTag: String = "blue",
-        titleFontSize: Double = 17.0,
         subtasks: [SubtaskItem] = [],
         sortOrder: Int = 0
     ) {
@@ -39,7 +37,6 @@ final class TodoItem {
         self.dueDate = dueDate
         self.isCompleted = isCompleted
         self.colorTag = colorTag
-        self.titleFontSize = titleFontSize
         self.subtasks = subtasks
         self.sortOrder = sortOrder
     }
