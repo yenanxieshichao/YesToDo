@@ -7,7 +7,6 @@ struct MainListView: View {
     @State private var showDeleteAlert = false
     @State private var todoToDelete: TodoItem? = nil
     @State private var showCalendarPopover = false
-    @State private var alignCenter: Bool = false // 待办行对齐方式
     @FocusState private var newTodoFocused: Bool
 
     private var dateTodos: [TodoItem] {
@@ -33,7 +32,7 @@ struct MainListView: View {
                     ScrollView {
                         LazyVStack(spacing: 6) {
                             ForEach(Array(dateTodos.enumerated()), id: \.element.id) { index, todo in
-                                TodoCardView(index: index + 1, todo: todo, alignCenter: alignCenter)
+                                TodoCardView(index: index + 1, todo: todo)
                                     .environmentObject(viewModel)
                                     .environmentObject(appState)
                                     .id(todo.id)
@@ -79,15 +78,6 @@ struct MainListView: View {
     // MARK: - 头部（居中）
     private var headerView: some View {
         HStack {
-            // 对齐切换按钮（放在左侧保持操作可达）
-            Button(action: { alignCenter.toggle() }) {
-                Image(systemName: alignCenter ? "text.aligncenter" : "text.alignleft")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.tertiary)
-            }
-            .buttonStyle(.plain)
-            .help(alignCenter ? "左对齐" : "居中对齐")
-
             Spacer()
 
             VStack(alignment: .center, spacing: 4) {

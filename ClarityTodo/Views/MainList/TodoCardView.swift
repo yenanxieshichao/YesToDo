@@ -1,11 +1,17 @@
 import SwiftUI
 import AppKit
 
+/// 阿拉伯数字转中文数字
+private func chineseNumber(_ n: Int) -> String {
+    let map = ["零","一","二","三","四","五","六","七","八","九","十",
+               "十一","十二","十三","十四","十五","十六","十七","十八","十九","二十"]
+    return n <= 20 ? map[n] : "\(n)"
+}
+
 // MARK: - 待办卡片
 struct TodoCardView: View {
     let index: Int
     let todo: TodoItem
-    let alignCenter: Bool
     @EnvironmentObject var viewModel: TodoViewModel
 
     @State private var showSubtaskInput = false
@@ -23,11 +29,11 @@ struct TodoCardView: View {
         VStack(spacing: 0) {
             // ── 主行 ──
             HStack(spacing: 10) {
-                // 序号
-                Text("\(index).")
+                // 中文序号（固定宽度对齐）
+                Text("\(chineseNumber(index))、")
                     .font(.system(size: CGFloat(todo.titleFontSize - 2), weight: .regular))
                     .foregroundStyle(.tertiary)
-                    .frame(width: 26, alignment: .trailing)
+                    .frame(width: 34, alignment: .trailing)
 
                 // 标题
                 if isEditingTitle {
@@ -59,7 +65,7 @@ struct TodoCardView: View {
                         .frame(width: 200)
                     }
 
-                    // ── 右侧三个大按钮（对号替代减号）──
+                    // ── 右侧操作图标 ──
                     HStack(spacing: 0) {
                         bigIcon("plus")
                             .onTapGesture { showSubtaskInput.toggle() }
@@ -74,7 +80,7 @@ struct TodoCardView: View {
             .padding(.vertical, 14)
             .padding(.horizontal, 16)
 
-            // ── 子待办列表（带序号：1.1, 1.2…）──
+            // ── 子待办列表（1. 2. 对齐在一个层级）──
             if !todo.subtasks.isEmpty {
                 VStack(spacing: 0) {
                     ForEach(
@@ -82,11 +88,9 @@ struct TodoCardView: View {
                         id: \.element.id
                     ) { subIdx, subtask in
                         SubtaskLineView(
-                            parentIndex: index,
                             subtaskIndex: subIdx + 1,
                             subtask: subtask,
-                            parentTodo: todo,
-                            alignCenter: alignCenter
+                            parentTodo: todo
                         )
                         .environmentObject(viewModel)
                     }
@@ -123,7 +127,7 @@ struct TodoCardView: View {
             .lineLimit(2)
             .strikethrough(todo.isCompleted, color: Color.secondary.opacity(0.5))
             .foregroundStyle(todo.isCompleted ? Color.secondary.opacity(0.65) : .primary)
-            .frame(maxWidth: .infinity, alignment: alignCenter ? .center : .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .onTapGesture(count: 2) {
                 editTitle = todo.title
                 isEditingTitle = true
@@ -136,7 +140,6 @@ struct TodoCardView: View {
             TextField("待办标题", text: $editTitle, onCommit: commitTitle)
                 .textFieldStyle(.plain)
                 .font(.system(size: CGFloat(todo.titleFontSize), weight: .medium))
-                .multilineTextAlignment(alignCenter ? .center : .leading)
                 .onExitCommand { commitTitle() }
 
             Button(action: commitTitle) {
@@ -166,7 +169,7 @@ struct TodoCardView: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.leading, alignCenter ? 16 : 48)
+        .padding(.leading, 50) // 与子待办序号对齐
         .padding(.trailing, 14)
         .padding(.bottom, 10)
     }
@@ -269,35 +272,40 @@ struct FontSettingsPanel: View {
     }
 }
 
-// MARK: - 子待办行（带序号 1.1, 1.2…）
+// MARK: - 子待办行（序号：1. 2. 3.）
 struct SubtaskLineView: View {
-    let parentIndex: Int
     let subtaskIndex: Int
     let subtask: SubtaskItem
     let parentTodo: TodoItem
-    let alignCenter: Bool
     @EnvironmentObject var viewModel: TodoViewModel
     @State private var showDeleteAlert = false
 
     var body: some View {
         HStack(spacing: 10) {
-            Text("\(parentIndex).\(subtaskIndex)")
-                .font(.system(size: 13, weight: .regular))
+            // 子序号：固定宽度 18，右对齐，与上面主序号列对齐
+            Text("\(subtaskIndex).")
+                .font(.system(size: 14, weight: .regular))
                 .foregroundStyle(.tertiary)
-                .frame(width: 34, alignment: .trailing)
+                .frame(width: 18, alignment: .trailing)
+
+            // 缩进占位（让子待办文本对齐在主待办标题的起始位置）
+            // 主序号 34pt + gap 10pt = 44pt 偏移
+            // 子序号 18pt + gap 4pt = 22pt → 再补 22pt → 总 44pt
+            // 但为了可视化对齐更精确，做透明占位
+            Color.clear
+                .frame(width: 22)
 
             Text(subtask.title)
                 .font(.system(size: 15))
                 .lineLimit(1)
                 .strikethrough(subtask.isCompleted, color: Color.secondary.opacity(0.5))
                 .foregroundStyle(subtask.isCompleted ? Color.secondary.opacity(0.65) : Color.primary)
-                .frame(maxWidth: .infinity, alignment: alignCenter ? .center : .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 8)
 
             // 子待办操作图标
             HStack(spacing: 0) {
-                // ✓ 完成/取消
                 Image(systemName: "checkmark")
                     .font(.system(size: 16))
                     .foregroundStyle(subtask.isCompleted ? .green : .secondary)
@@ -305,7 +313,6 @@ struct SubtaskLineView: View {
                     .contentShape(Rectangle())
                     .onTapGesture { viewModel.toggleSubtaskCompletion(subtask) }
 
-                // ✕ 删除
                 Image(systemName: "xmark")
                     .font(.system(size: 15))
                     .foregroundStyle(.secondary)
