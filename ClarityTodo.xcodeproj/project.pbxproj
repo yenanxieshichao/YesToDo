@@ -1,0 +1,309 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10001 /* ClarityTodoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20001; };
+		A10002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20002; };
+		A10003 /* TodoItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20003; };
+		A10004 /* SubtaskItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20004; };
+		A10005 /* TodoViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20005; };
+		A10006 /* RichTextService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20006; };
+		A10007 /* DataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20007; };
+		A10008 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20008; };
+		A10009 /* MainListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20009; };
+		A10010 /* TodoCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20010; };
+		A10011 /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20011; };
+		A10012 /* DetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20012; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A20001 /* ClarityTodoApp.swift */ = {isa = PBXFileReference; path = ClarityTodoApp.swift; sourceTree = "<group>"; };
+		A20002 /* ContentView.swift */ = {isa = PBXFileReference; path = ContentView.swift; sourceTree = "<group>"; };
+		A20003 /* TodoItem.swift */ = {isa = PBXFileReference; path = TodoItem.swift; sourceTree = "<group>"; };
+		A20004 /* SubtaskItem.swift */ = {isa = PBXFileReference; path = SubtaskItem.swift; sourceTree = "<group>"; };
+		A20005 /* TodoViewModel.swift */ = {isa = PBXFileReference; path = TodoViewModel.swift; sourceTree = "<group>"; };
+		A20006 /* RichTextService.swift */ = {isa = PBXFileReference; path = RichTextService.swift; sourceTree = "<group>"; };
+		A20007 /* DataService.swift */ = {isa = PBXFileReference; path = DataService.swift; sourceTree = "<group>"; };
+		A20008 /* SidebarView.swift */ = {isa = PBXFileReference; path = SidebarView.swift; sourceTree = "<group>"; };
+		A20009 /* MainListView.swift */ = {isa = PBXFileReference; path = MainListView.swift; sourceTree = "<group>"; };
+		A20010 /* TodoCardView.swift */ = {isa = PBXFileReference; path = TodoCardView.swift; sourceTree = "<group>"; };
+		A20011 /* CalendarView.swift */ = {isa = PBXFileReference; path = CalendarView.swift; sourceTree = "<group>"; };
+		A20012 /* DetailView.swift */ = {isa = PBXFileReference; path = DetailView.swift; sourceTree = "<group>"; };
+		A30001 /* ClarityTodo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; path = ClarityTodo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		A40001 = {
+			isa = PBXGroup;
+			children = (
+				A40002 /* ClarityTodo */,
+				A40003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A40002 /* ClarityTodo */ = {
+			isa = PBXGroup;
+			children = (
+				A20001 /* ClarityTodoApp.swift */,
+				A40004 /* Views */,
+				A40005 /* Models */,
+				A40006 /* ViewModels */,
+				A40007 /* Services */,
+			);
+			path = ClarityTodo;
+			sourceTree = "<group>";
+		};
+		A40003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A30001 /* ClarityTodo.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A40004 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				A20002 /* ContentView.swift */,
+				A40008 /* Sidebar */,
+				A40009 /* MainList */,
+				A40010 /* Detail */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		A40005 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				A20003 /* TodoItem.swift */,
+				A20004 /* SubtaskItem.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		A40006 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				A20005 /* TodoViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		A40007 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				A20006 /* RichTextService.swift */,
+				A20007 /* DataService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		A40008 /* Sidebar */ = {
+			isa = PBXGroup;
+			children = (
+				A20008 /* SidebarView.swift */,
+			);
+			path = Sidebar;
+			sourceTree = "<group>";
+		};
+		A40009 /* MainList */ = {
+			isa = PBXGroup;
+			children = (
+				A20009 /* MainListView.swift */,
+				A20010 /* TodoCardView.swift */,
+				A20011 /* CalendarView.swift */,
+			);
+			path = MainList;
+			sourceTree = "<group>";
+		};
+		A40010 /* Detail */ = {
+			isa = PBXGroup;
+			children = (
+				A20012 /* DetailView.swift */,
+			);
+			path = Detail;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A50001 /* ClarityTodo */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A70001;
+			buildPhases = (
+				A60001 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ClarityTodo;
+			productName = ClarityTodo;
+			productReference = A30001;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A80001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1540;
+				LastUpgradeCheck = 1540;
+			};
+			buildConfigurationList = A70002;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = "en-US";
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				"zh-Hans",
+			);
+			mainGroup = A40001;
+			productRefGroup = A40003;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A50001 /* ClarityTodo */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A60001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10001 /* ClarityTodoApp.swift in Sources */,
+				A10002 /* ContentView.swift in Sources */,
+				A10003 /* TodoItem.swift in Sources */,
+				A10004 /* SubtaskItem.swift in Sources */,
+				A10005 /* TodoViewModel.swift in Sources */,
+				A10006 /* RichTextService.swift in Sources */,
+				A10007 /* DataService.swift in Sources */,
+				A10008 /* SidebarView.swift in Sources */,
+				A10009 /* MainListView.swift in Sources */,
+				A10010 /* TodoCardView.swift in Sources */,
+				A10011 /* CalendarView.swift in Sources */,
+				A10012 /* DetailView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A70001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = ClarityTodo/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = "";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.clarity.todo;
+				PRODUCT_NAME = "Clarity Todo";
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.0;
+				ENABLE_PREVIEWS = YES;
+			};
+			name = Debug;
+		};
+		A70001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = ClarityTodo/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = "";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.clarity.todo;
+				PRODUCT_NAME = "Clarity Todo";
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.0;
+				ENABLE_PREVIEWS = YES;
+			};
+			name = Release;
+		};
+		A70002 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = "";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		A70002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_OPTIMIZATION_LEVEL = s;
+				IPHONEOS_DEPLOYMENT_TARGET = "";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A70001 /* Build configuration list for PBXNativeTarget "ClarityTodo" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A70001 /* Debug */,
+				A70001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A70002 /* Build configuration list for PBXProject "ClarityTodo" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A70002 /* Debug */,
+				A70002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A80001;
+}
