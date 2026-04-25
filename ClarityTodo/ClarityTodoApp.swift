@@ -71,8 +71,8 @@ class AppState: ObservableObject {
         )
         let newTodo = TodoItem(
             title: "",
-            isCompleted: false,
-            dueDate: filterDate
+            dueDate: filterDate,
+            isCompleted: false
         )
         context.insert(newTodo)
         selectedTodo = newTodo

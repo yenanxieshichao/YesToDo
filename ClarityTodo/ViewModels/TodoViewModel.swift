@@ -44,8 +44,8 @@ class TodoViewModel: ObservableObject {
         guard let context = modelContext else { return }
         let newTodo = TodoItem(
             title: "",
-            isCompleted: false,
-            dueDate: date
+            dueDate: date,
+            isCompleted: false
         )
         context.insert(newTodo)
         try? context.save()

@@ -46,8 +46,7 @@ struct RichTextEditor: NSViewRepresentable {
 
         scrollView.documentView = textView
 
-        // Set minimum size
-        scrollView.minSize = NSSize(width: 0, height: 100)
+
 
         return scrollView
     }
