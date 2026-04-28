@@ -5,6 +5,8 @@ struct MainListView: View {
     @EnvironmentObject var viewModel: TodoViewModel
     @State private var newTodoText: String = ""
     @State private var showCalendarPopover = false
+    @State private var showCarryOverAlert = false
+    @State private var carryOverCount = 0
     @FocusState private var newTodoFocused: Bool
 
     private var dateTodos: [TodoItem] {
@@ -73,6 +75,15 @@ struct MainListView: View {
             floatingComposer
                 .padding(.horizontal, 20)
                 .padding(.bottom, 16)
+        }
+        .alert("继承完成", isPresented: $showCarryOverAlert) {
+            Button("好的") {}
+        } message: {
+            if carryOverCount > 0 {
+                Text("已将 \(carryOverCount) 条未完成待办（含未完成子待办）复制到今天。")
+            } else {
+                Text("没有需要继承的待办。")
+            }
         }
     }
 
@@ -153,6 +164,27 @@ struct MainListView: View {
             .popover(isPresented: $showCalendarPopover, arrowEdge: .top) {
                 CompactCalendarView(selectedDate: $appState.selectedDate, isPresented: $showCalendarPopover)
                     .environmentObject(viewModel)
+            }
+
+            // 继承未完成待办（仅今天显示）
+            if appState.isTodaySelected && viewModel.hasUnfinishedBeforeToday() {
+                Button(action: {
+                    carryOverCount = viewModel.carryOverUnfinishedTodos(to: appState.selectedDate)
+                    showCarryOverAlert = true
+                }) {
+                    HStack(spacing: 3) {
+                        Image(systemName: "arrow.triangle.merge")
+                            .font(.system(size: 9))
+                        Text("继承")
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(Color.primary.opacity(0.04))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                .buttonStyle(.plain)
             }
 
             // 回到今天（非今天时显示）

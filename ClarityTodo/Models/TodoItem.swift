@@ -14,6 +14,8 @@ final class TodoItem {
     var colorTag: String
     @Relationship(deleteRule: .cascade) var subtasks: [SubtaskItem] = []
     var sortOrder: Int
+    /// 标记是否已被继承过：nil = 从未继承，非 nil = 已继承（值=继承发生日期）
+    var carriedOverDate: Date?
 
     init(
         id: UUID = UUID(),
@@ -26,7 +28,8 @@ final class TodoItem {
         isCompleted: Bool = false,
         colorTag: String = "blue",
         subtasks: [SubtaskItem] = [],
-        sortOrder: Int = 0
+        sortOrder: Int = 0,
+        carriedOverDate: Date? = nil
     ) {
         self.id = id
         self.title = title
@@ -39,6 +42,7 @@ final class TodoItem {
         self.colorTag = colorTag
         self.subtasks = subtasks
         self.sortOrder = sortOrder
+        self.carriedOverDate = carriedOverDate
     }
 
     func updateTimestamp() {

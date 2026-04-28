@@ -5,6 +5,3 @@ dist/
 *.xcworkspace
 Pods/
 *.app
-AppIcon.icns
-AppIcon.png
-AppIcon.iconset/

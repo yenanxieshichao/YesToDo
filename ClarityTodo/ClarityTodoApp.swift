@@ -10,11 +10,11 @@ struct YesToDoApp: App {
             ContentView()
                 .environmentObject(appState)
                 .modelContainer(sharedModelContainer)
-                .frame(minWidth: 980, minHeight: 680)
+                .frame(minWidth: 680, minHeight: 440)
                 .preferredColorScheme(appState.colorScheme)
         }
         .windowStyle(.titleBar)
-        .windowResizability(.contentMinSize)
+        .windowResizability(.automatic)
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("新建待办") {
