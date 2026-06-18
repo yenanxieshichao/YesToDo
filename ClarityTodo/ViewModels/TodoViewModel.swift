@@ -1,15 +1,12 @@
 import SwiftUI
 import SwiftData
-import Combine
 
 @MainActor
 class TodoViewModel: ObservableObject {
     @Published var todos: [TodoItem] = []
-    @Published var selectedTodo: TodoItem? = nil
     @Published var isLoading: Bool = false
 
     private var modelContext: ModelContext?
-    private var cancellables = Set<AnyCancellable>()
 
     init() {}
 
@@ -53,7 +50,6 @@ class TodoViewModel: ObservableObject {
         context.insert(newTodo)
         try? context.save()
         loadTodos()
-        selectedTodo = newTodo
         return newTodo
     }
 
@@ -67,9 +63,6 @@ class TodoViewModel: ObservableObject {
     func deleteTodo(_ todo: TodoItem) {
         guard let context = modelContext else { return }
         context.delete(todo)
-        if selectedTodo?.id == todo.id {
-            selectedTodo = nil
-        }
         try? context.save()
         loadTodos()
     }
@@ -163,9 +156,9 @@ class TodoViewModel: ObservableObject {
         }
 
         var copiedCount = 0
-        let baseSortOrder = todos.count
+        let baseSortOrder = (todos.map(\.sortOrder).max() ?? -1) + 1
 
-        for (index, todo) in sourceTodos.enumerated() {
+        for (index, todo) in sourceTodos.sorted(by: { $0.sortOrder < $1.sortOrder }).enumerated() {
             if !todo.subtasks.isEmpty && todo.subtasks.allSatisfy({ $0.isCompleted }) {
                 continue
             }
@@ -211,12 +204,13 @@ class TodoViewModel: ObservableObject {
     }
 
     /// 检查今天之前是否有未完成的待办（排除已继承和子待办全完成的）
-    func hasUnfinishedBeforeToday() -> Bool {
+    func hasUnfinishedBeforeToday(referenceDate: Date = Date()) -> Bool {
         let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
+        let today = calendar.startOfDay(for: referenceDate)
         return todos.contains { todo in
             guard let dueDate = todo.dueDate else { return false }
-            guard !calendar.isDate(dueDate, inSameDayAs: today) && dueDate < today && !todo.isCompleted else {
+            let todoDay = calendar.startOfDay(for: dueDate)
+            guard todoDay < today && !todo.isCompleted else {
                 return false
             }
             guard todo.carriedOverDate == nil else { return false }

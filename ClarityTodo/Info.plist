@@ -7,11 +7,11 @@
 	<key>CFBundleExecutable</key>
 	<string>YesToDo</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.clarity.todo</string>
+	<string>com.yenanxieshichao.YesToDo</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Yes To Do</string>
+	<string>YesToDo</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

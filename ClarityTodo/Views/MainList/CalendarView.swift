@@ -18,8 +18,8 @@ struct CompactCalendarView: View {
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(.secondary)
                         .frame(width: 28, height: 28)
-                        .background(.quaternary.opacity(0.2))
-                        .clipShape(Circle())
+                        .background(Color.primary.opacity(0.055))
+                        .clipShape(RoundedRectangle(cornerRadius: AppRadius.small, style: .continuous))
                 }
                 .buttonStyle(.plain)
 
@@ -36,8 +36,8 @@ struct CompactCalendarView: View {
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(.secondary)
                         .frame(width: 28, height: 28)
-                        .background(.quaternary.opacity(0.2))
-                        .clipShape(Circle())
+                        .background(Color.primary.opacity(0.055))
+                        .clipShape(RoundedRectangle(cornerRadius: AppRadius.small, style: .continuous))
                 }
                 .buttonStyle(.plain)
             }
@@ -76,7 +76,7 @@ struct CompactCalendarView: View {
 
             // ── 今天快捷 ──
             if !calendar.isDateInToday(selectedDate) {
-                PremiumDivider()
+                Divider()
                 Button(action: {
                     selectedDate = Date()
                     isPresented = false
@@ -87,7 +87,7 @@ struct CompactCalendarView: View {
                         Text("回到今天")
                             .font(.system(size: 12, weight: .medium))
                     }
-                    .foregroundStyle(Color.appBrand.primaryBlue)
+                    .foregroundStyle(Color.appAccent)
                     .padding(.vertical, 4)
                 }
                 .buttonStyle(.plain)
@@ -97,7 +97,7 @@ struct CompactCalendarView: View {
         .frame(width: 270)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.surfaceBackground)
+                .fill(Color.appSurface)
         )
     }
 
@@ -165,7 +165,7 @@ struct DayCell: View {
 
             if hasTodos && !isSelected {
                 Circle()
-                    .fill(Color.appBrand.primaryBlue)
+                    .fill(Color.appAccent)
                     .frame(width: 4, height: 4)
                     .offset(y: 12)
             }
@@ -175,13 +175,13 @@ struct DayCell: View {
 
     private var textColor: Color {
         if isSelected { return .white }
-        if isToday { return Color.appBrand.primaryBlue }
+        if isToday { return Color.appAccent }
         return .primary
     }
 
     private var backgroundColor: Color {
-        if isSelected { return Color.appBrand.primaryBlue }
-        if isToday { return Color.blue.opacity(0.08) }
+        if isSelected { return Color.appAccent }
+        if isToday { return Color.appAccent.opacity(0.08) }
         if isHovering { return Color(nsColor: .quaternaryLabelColor).opacity(0.15) }
         return Color.clear
     }

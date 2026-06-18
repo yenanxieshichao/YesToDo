@@ -1,7 +1,9 @@
 .build/
+build/
 dist/
 .DS_Store
 *.xcuserdata
 *.xcworkspace
 Pods/
 *.app
+AppIcon.iconset/

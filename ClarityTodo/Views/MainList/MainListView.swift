@@ -3,7 +3,8 @@ import SwiftUI
 struct MainListView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var viewModel: TodoViewModel
-    @State private var newTodoText: String = ""
+
+    @State private var newTodoText = ""
     @State private var showCalendarPopover = false
     @State private var showCarryOverAlert = false
     @State private var carryOverCount = 0
@@ -13,250 +14,186 @@ struct MainListView: View {
         viewModel.todosForDate(appState.selectedDate)
     }
 
-    private var completedCount: Int { dateTodos.filter(\.isCompleted).count }
-    private var progressPercent: Int {
-        dateTodos.isEmpty ? 0 : Int((Double(completedCount) / Double(dateTodos.count)) * 100)
+    private var completedCount: Int {
+        dateTodos.filter(\.isCompleted).count
+    }
+
+    private var openCount: Int {
+        dateTodos.count - completedCount
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            // ── Hero Header ──
-            heroHeader
+            header
                 .padding(.horizontal, 24)
-                .padding(.top, 24)
-                .padding(.bottom, 6)
+                .padding(.top, 22)
+                .padding(.bottom, 14)
 
-            // ── 统计条 ──
-            if !dateTodos.isEmpty {
-                statsRow
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 12)
-            }
+            composer
+                .padding(.horizontal, 24)
+                .padding(.bottom, 14)
 
-            // ── 待办列表容器 ──
-            ScrollView {
-                VStack(spacing: 0) {
-                    if dateTodos.isEmpty {
-                        PremiumEmptyState(
-                            icon: "sun.max",
-                            title: "今天很清爽",
-                            subtitle: "写下今天最重要的几件事，保持节奏就好。",
-                            hint: "按 ⌘N 快速添加"
-                        )
-                        .frame(minHeight: 300)
-                    } else {
-                        LazyVStack(spacing: 4) {
-                            ForEach(Array(dateTodos.enumerated()), id: \.element.id) { index, todo in
-                                TodoCardView(index: index + 1, todo: todo)
-                                    .environmentObject(viewModel)
-                                    .environmentObject(appState)
-                                    .transition(.move(edge: .top).combined(with: .opacity))
-                            }
-                        }
-                        .padding(.top, 4)
-                        .padding(.bottom, 80) // 给浮层栏留空间
-                    }
-                }
-                .padding(.horizontal, 20)
-            }
-            .scrollContentBackground(.hidden)
+            metrics
+                .padding(.horizontal, 24)
+                .padding(.bottom, 12)
+
+            Divider()
+                .opacity(0.55)
+
+            taskList
         }
         .onReceive(NotificationCenter.default.publisher(for: .focusNewTodoCommand)) { _ in
-            DispatchQueue.main.async {
-                newTodoFocused = true
-            }
+            focusComposer()
         }
         .onChange(of: appState.selectedDate) { _, _ in
-            // 切换日期时取消选中
             appState.selectedTodo = nil
-        }
-        .overlay(alignment: .bottom) {
-            // ── Floating Composer ──
-            floatingComposer
-                .padding(.horizontal, 20)
-                .padding(.bottom, 16)
+            focusComposer()
         }
         .alert("继承完成", isPresented: $showCarryOverAlert) {
             Button("好的") {}
         } message: {
-            if carryOverCount > 0 {
-                Text("已将 \(carryOverCount) 条未完成待办（含未完成子待办）复制到今天。")
-            } else {
-                Text("没有需要继承的待办。")
-            }
+            Text(carryOverCount > 0 ? "已将 \(carryOverCount) 条未完成待办复制到今天。" : "没有需要继承的待办。")
         }
     }
 
-    // MARK: - Hero Header
-    private var heroHeader: some View {
-        HStack(spacing: 12) {
-            // 品牌徽标
-            HStack(spacing: 6) {
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(Color.appBrand.primaryBlue)
-                    .frame(width: 24, height: 24)
-                    .overlay {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.white)
-                    }
-                Text("Yes To Do")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-            }
-
-            Spacer()
-
-            // 全局缩放控件
-            HStack(spacing: 6) {
-                Button(action: {
-                    appState.globalFontSize = max(12, appState.globalFontSize - 1)
-                }) {
-                    Image(systemName: "minus")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 22, height: 22)
-                        .background(.quaternary.opacity(0.2))
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                }
-                .buttonStyle(.plain)
-
-                Text("\(Int(appState.globalFontSize))")
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 24)
-
-                Button(action: {
-                    appState.globalFontSize = min(32, appState.globalFontSize + 1)
-                }) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 22, height: 22)
-                        .background(.quaternary.opacity(0.2))
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                }
-                .buttonStyle(.plain)
-            }
-
-            // 日期间信息
-            VStack(alignment: .trailing, spacing: 0) {
+    private var header: some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(appState.headerTitle)
-                    .font(.system(size: 24, weight: .bold))
+                    .font(.system(size: 28, weight: .semibold))
                     .foregroundStyle(.primary)
-                if !appState.headerSubtitle.isEmpty {
-                    Text(appState.headerSubtitle)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.tertiary)
-                }
+
+                Text(appState.headerSubtitle)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
             }
 
-            // 日历按钮
-            Button(action: { showCalendarPopover.toggle() }) {
+            Spacer(minLength: 12)
+
+            if appState.isTodaySelected && viewModel.hasUnfinishedBeforeToday(referenceDate: appState.selectedDate) {
+                Button {
+                    carryOverCount = viewModel.carryOverUnfinishedTodos(to: appState.selectedDate)
+                    showCarryOverAlert = true
+                } label: {
+                    Label("继承未完成", systemImage: "arrow.triangle.merge")
+                        .font(.system(size: 13, weight: .medium))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 7)
+                        .background(Color.appWarning.opacity(0.10))
+                        .foregroundStyle(Color.appWarning)
+                        .clipShape(RoundedRectangle(cornerRadius: AppRadius.medium, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            }
+
+            if !appState.isTodaySelected {
+                Button {
+                    appState.selectedDate = Date()
+                } label: {
+                    Label("今天", systemImage: "arrow.uturn.left")
+                        .font(.system(size: 13, weight: .medium))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 7)
+                        .background(Color.appAccent.opacity(0.08))
+                        .foregroundStyle(Color.appAccent)
+                        .clipShape(RoundedRectangle(cornerRadius: AppRadius.medium, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            }
+
+            Button {
+                showCalendarPopover.toggle()
+            } label: {
                 Image(systemName: "calendar")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(.secondary)
                     .frame(width: 32, height: 32)
-                    .background(.quaternary.opacity(0.3))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .background(Color.primary.opacity(0.055))
+                    .clipShape(RoundedRectangle(cornerRadius: AppRadius.medium, style: .continuous))
             }
             .buttonStyle(.plain)
+            .help("选择日期")
             .popover(isPresented: $showCalendarPopover, arrowEdge: .top) {
                 CompactCalendarView(selectedDate: $appState.selectedDate, isPresented: $showCalendarPopover)
                     .environmentObject(viewModel)
             }
-
-            // 继承未完成待办（仅今天显示）
-            if appState.isTodaySelected && viewModel.hasUnfinishedBeforeToday() {
-                Button(action: {
-                    carryOverCount = viewModel.carryOverUnfinishedTodos(to: appState.selectedDate)
-                    showCarryOverAlert = true
-                }) {
-                    HStack(spacing: 3) {
-                        Image(systemName: "arrow.triangle.merge")
-                            .font(.system(size: 9))
-                        Text("继承")
-                            .font(.system(size: 11, weight: .medium))
-                    }
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 5)
-                    .background(Color.primary.opacity(0.04))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                }
-                .buttonStyle(.plain)
-            }
-
-            // 回到今天（非今天时显示）
-            if !appState.isTodaySelected {
-                Button(action: { appState.selectedDate = Date() }) {
-                    Text("回到今天")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(Color.appBrand.primaryBlue)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(Color.blue.opacity(0.06))
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                }
-                .buttonStyle(.plain)
-            }
         }
     }
 
-    // MARK: - 统计条
-    private var statsRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                InfoChip(icon: "checklist", text: "今日待办 \(dateTodos.count)", color: .appBrand.primaryBlue)
-                InfoChip(icon: "checkmark.circle.fill", text: "已完成 \(completedCount)", color: .appBrand.successGreen)
-                InfoChip(icon: "percent", text: "完成率 \(progressPercent)%", color: .appBrand.warningAmber)
-                InfoChip(icon: "calendar", text: formatDateShort(appState.selectedDate), color: .inkTertiary)
-            }
-        }
-    }
-
-    // MARK: - Floating Composer
-    private var floatingComposer: some View {
-        HStack(spacing: 10) {
+    private var composer: some View {
+        HStack(spacing: 11) {
             Image(systemName: "plus.circle.fill")
                 .font(.system(size: 18))
-                .foregroundStyle(Color.appBrand.primaryBlue)
+                .foregroundStyle(Color.appAccent)
 
-            TextField("写下今天要做的事…", text: $newTodoText)
+            TextField(appState.isTodaySelected ? "添加今天要做的事" : "添加到 \(shortDate(appState.selectedDate))", text: $newTodoText)
                 .textFieldStyle(.plain)
                 .font(.system(size: 15))
                 .focused($newTodoFocused)
-                .onSubmit { addNewTodo() }
+                .onSubmit(addNewTodo)
 
             PrimaryActionButton(
                 title: "添加",
-                disabled: newTodoText.trimmingCharacters(in: .whitespaces).isEmpty,
+                disabled: newTodoText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                 action: addNewTodo
             )
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: PremiumRadius.xl, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .floatingShadow()
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: PremiumRadius.xl, style: .continuous)
-                .stroke(Color.cardBorder, lineWidth: 0.5)
-        )
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
+        .background(Color.appSurfaceElevated)
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.panel, style: .continuous))
+        .subtleBorder(AppRadius.panel)
+    }
+
+    private var metrics: some View {
+        HStack(spacing: 8) {
+            MetricChip(icon: "circle", text: "未完成 \(openCount)", tint: openCount > 0 ? .appWarning : .secondary)
+            MetricChip(icon: "checkmark.circle.fill", text: "已完成 \(completedCount)", tint: .appSuccess)
+            MetricChip(icon: "list.bullet", text: "全部 \(dateTodos.count)", tint: .appAccent)
+
+            Spacer()
+        }
+    }
+
+    private var taskList: some View {
+        ScrollView {
+            if dateTodos.isEmpty {
+                EmptyListView(
+                    title: appState.isTodaySelected ? "今天没有待办" : "这天没有待办",
+                    subtitle: "添加一件真正需要推进的事，让清单保持轻而明确。"
+                )
+                .padding(.top, 36)
+            } else {
+                LazyVStack(spacing: 2) {
+                    ForEach(Array(dateTodos.enumerated()), id: \.element.id) { index, todo in
+                        TodoCardView(index: index + 1, todo: todo)
+                            .environmentObject(viewModel)
+                            .environmentObject(appState)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+            }
+        }
+        .scrollContentBackground(.hidden)
     }
 
     private func addNewTodo() {
-        guard let _ = viewModel.createTodo(title: newTodoText, date: appState.selectedDate) else { return }
+        guard viewModel.createTodo(title: newTodoText, date: appState.selectedDate) != nil else { return }
         newTodoText = ""
-        newTodoFocused = false  // 显式失焦，让待办卡片可被选择/编辑
+        focusComposer()
     }
 
-    private func formatDateShort(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "zh_CN")
-        f.dateFormat = "M月d日"
-        return f.string(from: date)
+    private func focusComposer() {
+        DispatchQueue.main.async {
+            newTodoFocused = true
+        }
+    }
+
+    private func shortDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateFormat = "M月d日"
+        return formatter.string(from: date)
     }
 }

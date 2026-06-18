@@ -9,7 +9,8 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "YesToDo",
-            path: "ClarityTodo"
+            path: "ClarityTodo",
+            exclude: ["Info.plist"]
         )
     ]
 )

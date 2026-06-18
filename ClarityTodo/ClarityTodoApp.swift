@@ -22,6 +22,12 @@ struct YesToDoApp: App {
                 }
                 .keyboardShortcut("n", modifiers: .command)
             }
+            CommandGroup(after: .pasteboard) {
+                Button("删除所选待办") {
+                    NotificationCenter.default.post(name: .deleteTodoCommand, object: nil)
+                }
+                .keyboardShortcut(.delete, modifiers: [])
+            }
             CommandGroup(replacing: .undoRedo) {
                 Button("撤销") {
                     NSApp.sendAction(#selector(UndoManager.undo), to: nil, from: nil)
@@ -32,20 +38,6 @@ struct YesToDoApp: App {
                 }
                 .keyboardShortcut("z", modifiers: [.command, .shift])
             }
-            CommandGroup(replacing: .textFormatting) {
-                Button("粗体") {
-                    NotificationCenter.default.post(name: .boldCommand, object: nil)
-                }
-                .keyboardShortcut("b", modifiers: .command)
-                Button("斜体") {
-                    NotificationCenter.default.post(name: .italicCommand, object: nil)
-                }
-                .keyboardShortcut("i", modifiers: .command)
-                Button("下划线") {
-                    NotificationCenter.default.post(name: .underlineCommand, object: nil)
-                }
-                .keyboardShortcut("u", modifiers: .command)
-            }
         }
     }
 }
@@ -55,7 +47,6 @@ class AppState: ObservableObject {
     @Published var selectedDate: Date = Date()
     @Published var selectedTodo: TodoItem? = nil
     @Published var isCalendarPopover: Bool = false
-    @Published var globalFontSize: CGFloat = 16
 
     var isTodaySelected: Bool {
         Calendar.current.isDateInToday(selectedDate)
@@ -70,13 +61,10 @@ class AppState: ObservableObject {
     }
 
     var headerSubtitle: String {
-        if isTodaySelected {
-            let f = DateFormatter()
-            f.locale = Locale(identifier: "zh_CN")
-            f.dateFormat = "yyyy年M月d日 EEEE"
-            return f.string(from: Date())
-        }
-        return ""
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_CN")
+        f.dateFormat = "yyyy年M月d日 EEEE"
+        return f.string(from: selectedDate)
     }
 }
 
@@ -98,9 +86,6 @@ let sharedModelContainer: ModelContainer = {
 }()
 
 extension Notification.Name {
-    static let boldCommand = Notification.Name("boldCommand")
-    static let italicCommand = Notification.Name("italicCommand")
-    static let underlineCommand = Notification.Name("underlineCommand")
     static let deleteTodoCommand = Notification.Name("deleteTodoCommand")
     static let focusNewTodoCommand = Notification.Name("focusNewTodoCommand")
 }

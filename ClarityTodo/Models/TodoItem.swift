@@ -59,30 +59,3 @@ extension TodoItem {
         return formatter.string(from: date)
     }
 }
-
-let colorTags: [(name: String, color: String)] = [
-    ("Red", "red"),
-    ("Orange", "orange"),
-    ("Yellow", "yellow"),
-    ("Green", "green"),
-    ("Blue", "blue"),
-    ("Purple", "purple"),
-    ("Pink", "pink"),
-    ("Gray", "gray")
-]
-
-extension String {
-    var displayColor: String {
-        switch self {
-        case "red": return "#FF3B30"
-        case "orange": return "#FF9500"
-        case "yellow": return "#FFCC00"
-        case "green": return "#34C759"
-        case "blue": return "#007AFF"
-        case "purple": return "#AF52DE"
-        case "pink": return "#FF2D55"
-        case "gray": return "#8E8E93"
-        default: return "#007AFF"
-        }
-    }
-}

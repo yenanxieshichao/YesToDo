@@ -11,7 +11,7 @@ struct ContentView: View {
         MainListView()
             .environmentObject(appState)
             .environmentObject(viewModel)
-            .premiumBackground()
+            .appBackground()
             .onAppear {
                 viewModel.setup(with: modelContext)
             }
